@@ -1,0 +1,22 @@
+[package]
+name = "vega"
+description = "A fast, simple and open source Minecraft launcher"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "vega_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+tauri = "2.12.5"
+tauri-plugin-opener = "2.7.2"
+tauri-plugin-single-instance = "2.5.4"
+tokio = { version = "1.54.1", features = ["io-util", "process", "macros", "sync"] }
+vega-core = { path = "../crates/vega-core" }
+
+[build-dependencies]
+tauri-build = "2.7.4"
