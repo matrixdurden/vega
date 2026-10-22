@@ -9,7 +9,7 @@
 use std::{sync::Arc, time::Duration};
 
 use tokio::io::{AsyncBufReadExt, BufReader};
-use vega_core::{Launcher, Loader, Paths, ProgressEvent, Settings};
+use vega_core::{Launcher, Loader, Paths, ProfileDraft, ProgressEvent, Settings};
 
 #[tokio::main]
 async fn main() -> vega_core::Result<()> {
@@ -21,7 +21,14 @@ async fn main() -> vega_core::Result<()> {
 
     let launcher = Launcher::new(Paths::new(root))?;
     launcher.save_settings(Settings { username: "VegaSmoke".into(), memory_mb: 2048, ..Settings::default() }).await?;
-    let profile = launcher.create_profile(&format!("Smoke {game}"), game, Loader::Fabric).await?;
+    let draft = ProfileDraft {
+        name: format!("Smoke {game}"),
+        icon: "rocket".into(),
+        game_version: game.into(),
+        loader: Loader::Fabric,
+        memory_mb: None,
+    };
+    let profile = launcher.create_profile(draft).await?;
     println!("profile: {} (fabric {:?})", profile.id, profile.loader_version);
 
     let mods = launcher.install_mod(&profile.id, mod_slug).await?;

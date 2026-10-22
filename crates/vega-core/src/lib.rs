@@ -24,4 +24,4 @@ pub use launch::LaunchPlan;
 pub use launcher::{GameVersion, Launcher, ModResult};
 pub use net::{Progress, ProgressEvent, Stage, no_progress};
 pub use paths::Paths;
-pub use profile::{Loader, Profile, Settings};
+pub use profile::{Loader, Profile, ProfileDraft, Settings, World};

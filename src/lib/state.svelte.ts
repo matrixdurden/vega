@@ -1,23 +1,39 @@
-import { api, on, type GameVersion, type InstalledMod, type LogLine, type Profile, type Settings, type Stage } from "./api";
+import {
+  api,
+  on,
+  type GameVersion,
+  type InstalledMod,
+  type LogLine,
+  type Profile,
+  type ProfileDraft,
+  type Settings,
+  type Stage,
+  type World,
+} from "./api";
 import { locale, t } from "./i18n.svelte";
 
-export type View = "home" | "mods" | "settings";
+export type View = "profile" | "settings";
+export type ProfileTab = "mods" | "worlds" | "settings";
 type Toast = { id: number; kind: "info" | "error"; text: string };
+type Dialog = { mode: "create" } | { mode: "edit"; id: string };
 
 const MAX_LOG_LINES = 2000;
 
 export const app = $state({
   ready: false,
-  view: "home" as View,
+  view: "profile" as View,
+  tab: "mods" as ProfileTab,
   settings: null as Settings | null,
   profiles: [] as Profile[],
   selectedId: null as string | null,
   mods: [] as InstalledMod[],
+  worlds: [] as World[],
   versions: [] as GameVersion[],
   launch: { phase: "idle" as "idle" | "preparing" | "running", stage: "metadata" as Stage, done: 0, total: 0 },
   logs: [] as LogLine[],
   consoleOpen: false,
-  newProfileOpen: false,
+  modBrowserOpen: false,
+  dialog: null as Dialog | null,
   toast: null as Toast | null,
 });
 
@@ -36,6 +52,15 @@ export function errorText(err: unknown): string {
   return typeof err === "string" ? err : err instanceof Error ? err.message : String(err);
 }
 
+/** Runs an action and shows its error as a toast instead of throwing. */
+export async function attempt<T>(action: () => Promise<T>): Promise<T | undefined> {
+  try {
+    return await action();
+  } catch (err) {
+    toast(errorText(err), "error");
+  }
+}
+
 export async function init() {
   wireEvents();
   try {
@@ -48,8 +73,8 @@ export async function init() {
     if (profiles.length === 0) await createFirstProfile();
     const remembered = app.profiles.find((p) => p.id === settings.selectedProfile);
     const recent = [...app.profiles].sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))[0];
-    app.selectedId = (remembered ?? recent)?.id ?? null;
-    await loadMods();
+    const first = remembered ?? recent;
+    if (first) await selectProfile(first.id, false);
   } catch (err) {
     app.ready = true;
     toast(errorText(err), "error");
@@ -61,7 +86,8 @@ async function createFirstProfile() {
   await loadVersions();
   const latest = app.versions.find((version) => version.fabric) ?? app.versions[0];
   if (!latest) return;
-  const profile = await api.createProfile(`Fabric ${latest.id}`, latest.id, latest.fabric ? "fabric" : "vanilla");
+  const loader = latest.fabric ? "fabric" : "vanilla";
+  const profile = await api.createProfile({ name: "Survival", icon: "grass", gameVersion: latest.id, loader, memoryMb: null });
   app.profiles = [profile];
 }
 
@@ -74,30 +100,48 @@ export async function loadVersions() {
   }
 }
 
-export async function loadMods() {
-  app.mods = app.selectedId ? await api.installedMods(app.selectedId) : [];
+async function loadProfileData(id: string) {
+  const [mods, worlds] = await Promise.all([api.installedMods(id), api.listWorlds(id)]);
+  if (app.selectedId === id) {
+    app.mods = mods;
+    app.worlds = worlds;
+  }
 }
 
-export async function selectProfile(id: string) {
+export async function selectProfile(id: string, remember = true) {
+  app.view = "profile";
+  app.modBrowserOpen = false;
+  if (app.selectedId === id) return;
   app.selectedId = id;
-  updateSettings({ selectedProfile: id });
-  await loadMods();
+  app.mods = [];
+  app.worlds = [];
+  if (remember) updateSettings({ selectedProfile: id });
+  await attempt(() => loadProfileData(id));
 }
 
-export async function createProfile(name: string, gameVersion: string, loader: Profile["loader"]) {
-  const profile = await api.createProfile(name, gameVersion, loader);
+export async function createProfile(draft: ProfileDraft) {
+  const profile = await api.createProfile(draft);
   app.profiles.push(profile);
+  app.tab = "mods";
   await selectProfile(profile.id);
 }
 
+export async function updateProfile(id: string, draft: ProfileDraft) {
+  const updated = await api.updateProfile(id, draft);
+  const index = app.profiles.findIndex((profile) => profile.id === id);
+  if (index >= 0) app.profiles[index] = updated;
+}
+
 export async function deleteProfile(id: string) {
-  try {
+  await attempt(async () => {
     await api.deleteProfile(id);
     app.profiles = app.profiles.filter((profile) => profile.id !== id);
-    if (app.selectedId === id) await selectProfile(app.profiles[0]?.id ?? "");
-  } catch (err) {
-    toast(errorText(err), "error");
-  }
+    if (app.selectedId === id) {
+      app.selectedId = null;
+      const next = app.profiles[0];
+      if (next) await selectProfile(next.id);
+    }
+  });
 }
 
 let saveTimer: ReturnType<typeof setTimeout>;
@@ -107,13 +151,7 @@ export function updateSettings(patch: Partial<Settings>) {
   Object.assign(app.settings, patch);
   if (patch.language) locale.lang = patch.language;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    try {
-      await api.saveSettings($state.snapshot(app.settings!));
-    } catch (err) {
-      toast(errorText(err), "error");
-    }
-  }, 400);
+  saveTimer = setTimeout(() => attempt(() => api.saveSettings($state.snapshot(app.settings!))), 400);
 }
 
 export async function launch() {
@@ -132,7 +170,7 @@ export async function launch() {
 }
 
 export function stopGame() {
-  api.stopGame().catch((err) => toast(errorText(err), "error"));
+  attempt(() => api.stopGame());
 }
 
 function wireEvents() {
@@ -141,7 +179,7 @@ function wireEvents() {
   });
   on("game-started", () => {
     app.launch.phase = "running";
-    const profile = app.profiles.find((p) => p.id === app.selectedId);
+    const profile = selectedProfile();
     if (profile) profile.lastPlayed = Math.floor(Date.now() / 1000);
   });
   on("game-log", (line) => {
@@ -150,6 +188,7 @@ function wireEvents() {
   });
   on("game-exited", (code) => {
     app.launch.phase = "idle";
+    if (app.selectedId) attempt(() => loadProfileData(app.selectedId!));
     if (code !== null && code !== 0) {
       toast(t("error.crashed", { code }), "error");
       app.consoleOpen = true;

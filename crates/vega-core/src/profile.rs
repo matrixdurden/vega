@@ -14,13 +14,45 @@ pub enum Loader {
 pub struct Profile {
     pub id: String,
     pub name: String,
+    /// Key of one of the icons the UI offers.
+    #[serde(default = "default_icon")]
+    pub icon: String,
     pub game_version: String,
     pub loader: Loader,
     /// Pinned when the profile is created so updates never surprise anyone.
     #[serde(default)]
     pub loader_version: Option<String>,
+    /// Overrides the global memory setting when set.
+    #[serde(default)]
+    pub memory_mb: Option<u32>,
     /// Unix seconds.
     #[serde(default)]
+    pub last_played: Option<u64>,
+}
+
+fn default_icon() -> String {
+    "cube".into()
+}
+
+/// What the player fills in when creating or editing a profile.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileDraft {
+    pub name: String,
+    pub icon: String,
+    pub game_version: String,
+    pub loader: Loader,
+    #[serde(default)]
+    pub memory_mb: Option<u32>,
+}
+
+/// A save in a profile's `saves` folder.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct World {
+    /// Folder name, which is also what the game shows unless renamed in-game.
+    pub name: String,
+    /// Unix seconds of the last save.
     pub last_played: Option<u64>,
 }
 

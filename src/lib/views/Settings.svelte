@@ -1,17 +1,22 @@
 <script lang="ts">
+  import { openUrl } from "@tauri-apps/plugin-opener";
+  import { isTauri } from "../api";
   import Icon from "../components/Icon.svelte";
+  import MemorySlider from "../components/MemorySlider.svelte";
   import { t } from "../i18n.svelte";
   import { app, updateSettings } from "../state.svelte";
 
   const USERNAME = /^\w{3,16}$/;
+  const REPO = "https://github.com/matrixdurden/vega";
 
   let username = $state(app.settings?.username ?? "");
   const usernameValid = $derived(USERNAME.test(username));
-  const memoryGb = $derived((app.settings?.memoryMb ?? 4096) / 1024);
 
   function onUsername() {
     if (usernameValid) updateSettings({ username });
   }
+
+  const openRepo = () => (isTauri ? openUrl(REPO) : window.open(REPO, "_blank"));
 </script>
 
 {#if app.settings}
@@ -32,18 +37,7 @@
           <span class="label"><Icon name="memory" size={16} />{t("settings.memory")}</span>
           <span class="hint">{t("settings.memoryHint")}</span>
         </div>
-        <div class="memory">
-          <input
-            type="range"
-            min="1"
-            max="16"
-            step="0.5"
-            value={memoryGb}
-            style:--fill="{((memoryGb - 1) / 15) * 100}%"
-            oninput={(e) => updateSettings({ memoryMb: Math.round(Number(e.currentTarget.value) * 1024) })}
-          />
-          <b>{memoryGb} GB</b>
-        </div>
+        <MemorySlider value={app.settings.memoryMb} onchange={(memoryMb) => updateSettings({ memoryMb })} />
       </div>
 
       <div class="row">
@@ -71,7 +65,10 @@
       </div>
     </div>
 
-    <p class="about">Vega 0.1.0 · {t("settings.about")}</p>
+    <p class="about">
+      Vega 0.2.0 · {t("settings.about")}
+      <button class="link" onclick={openRepo}><Icon name="github" size={14} />GitHub</button>
+    </p>
   </section>
 {/if}
 
@@ -79,7 +76,7 @@
   .settings {
     height: 100%;
     overflow-y: auto;
-    padding: 36px 44px 40px;
+    padding: 46px 36px 40px;
   }
 
   h1 {
@@ -90,7 +87,7 @@
   }
 
   .card {
-    max-width: 720px;
+    max-width: 760px;
     border-radius: 16px;
     background: rgb(18 16 42 / 0.6);
     border: 1px solid var(--border);
@@ -141,37 +138,6 @@
 
   .input.bad {
     border-color: rgb(240 149 149 / 0.6);
-  }
-
-  .memory {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .memory b {
-    width: 52px;
-    text-align: right;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  input[type="range"] {
-    width: 200px;
-    height: 6px;
-    appearance: none;
-    border-radius: 99px;
-    background: linear-gradient(to right, var(--accent) var(--fill), rgb(255 255 255 / 0.1) var(--fill));
-    cursor: pointer;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #fff;
-    border: 4px solid var(--accent);
   }
 
   .switch {
@@ -227,8 +193,22 @@
   }
 
   .about {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-top: 16px;
     font-size: 12px;
     color: var(--text-3);
+  }
+
+  .link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-2);
+  }
+
+  .link:hover {
+    color: var(--text);
   }
 </style>

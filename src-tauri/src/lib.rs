@@ -9,7 +9,8 @@ use tokio::{
     sync::{Mutex, oneshot},
 };
 use vega_core::{
-    Error, GameVersion, Launcher, Loader, ModResult, Paths, Profile, Progress, Settings, modrinth::InstalledMod,
+    Error, GameVersion, Launcher, ModResult, Paths, Profile, ProfileDraft, Progress, Settings, World,
+    modrinth::InstalledMod,
 };
 
 type CmdResult<T> = Result<T, Error>;
@@ -42,13 +43,18 @@ async fn list_profiles(state: State<'_, AppState>) -> CmdResult<Vec<Profile>> {
 }
 
 #[tauri::command]
-async fn create_profile(
-    state: State<'_, AppState>,
-    name: String,
-    game_version: String,
-    loader: Loader,
-) -> CmdResult<Profile> {
-    state.launcher.create_profile(&name, &game_version, loader).await
+async fn create_profile(state: State<'_, AppState>, draft: ProfileDraft) -> CmdResult<Profile> {
+    state.launcher.create_profile(draft).await
+}
+
+#[tauri::command]
+async fn update_profile(state: State<'_, AppState>, id: String, draft: ProfileDraft) -> CmdResult<Profile> {
+    state.launcher.update_profile(&id, draft).await
+}
+
+#[tauri::command]
+async fn list_worlds(state: State<'_, AppState>, profile_id: String) -> CmdResult<Vec<World>> {
+    state.launcher.worlds(&profile_id).await
 }
 
 #[tauri::command]
@@ -90,8 +96,18 @@ async fn remove_mod(
 }
 
 #[tauri::command]
-async fn open_profile_folder(state: State<'_, AppState>, profile_id: String) -> CmdResult<()> {
-    let dir = state.launcher.instance_dir(&profile_id);
+async fn set_mod_enabled(
+    state: State<'_, AppState>,
+    profile_id: String,
+    project_id: String,
+    enabled: bool,
+) -> CmdResult<Vec<InstalledMod>> {
+    state.launcher.set_mod_enabled(&profile_id, &project_id, enabled).await
+}
+
+#[tauri::command]
+async fn open_profile_folder(state: State<'_, AppState>, profile_id: String, folder: Option<String>) -> CmdResult<()> {
+    let dir = state.launcher.instance_dir(&profile_id, folder.as_deref())?;
     tokio::fs::create_dir_all(&dir).await?;
     tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|err| Error::other(err.to_string()))
 }
@@ -176,7 +192,10 @@ pub fn run() {
             save_settings,
             list_profiles,
             create_profile,
+            update_profile,
             delete_profile,
+            list_worlds,
+            set_mod_enabled,
             game_versions,
             installed_mods,
             search_mods,

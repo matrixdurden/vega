@@ -16,7 +16,7 @@
 
 <section class="console">
   <div class="head">
-    <span><Icon name="terminal" size={16} /> {t("home.console")}</span>
+    <span><Icon name="terminal" size={16} /> {t("profile.console")}</span>
     <button aria-label={t("window.close")} onclick={() => (app.consoleOpen = false)}><Icon name="x" size={16} /></button>
   </div>
   <div class="lines" bind:this={list}>

@@ -1,17 +1,19 @@
 <script lang="ts">
   import Console from "./lib/components/Console.svelte";
-  import NewProfileDialog from "./lib/components/NewProfileDialog.svelte";
+  import ModBrowser from "./lib/components/ModBrowser.svelte";
+  import ProfileDialog from "./lib/components/ProfileDialog.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
   import Starfield from "./lib/components/Starfield.svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { locale } from "./lib/i18n.svelte";
-  import { app, init } from "./lib/state.svelte";
-  import Home from "./lib/views/Home.svelte";
-  import Mods from "./lib/views/Mods.svelte";
+  import { app, init, selectedProfile } from "./lib/state.svelte";
+  import Profile from "./lib/views/Profile.svelte";
   import Settings from "./lib/views/Settings.svelte";
 
   init();
+
+  const profile = $derived(selectedProfile());
 
   $effect(() => {
     document.documentElement.lang = locale.lang;
@@ -24,20 +26,23 @@
   <Sidebar />
 
   <main>
-    {#if app.view === "home"}
-      <Home />
-    {:else if app.view === "mods"}
-      <Mods />
-    {:else}
+    {#if app.view === "settings"}
       <Settings />
+    {:else}
+      <Profile />
+    {/if}
+    {#if app.modBrowserOpen && profile && app.view === "profile"}
+      <ModBrowser {profile} />
     {/if}
     {#if app.consoleOpen}
       <Console />
     {/if}
   </main>
 
-  {#if app.newProfileOpen}
-    <NewProfileDialog />
+  {#if app.dialog}
+    {#key app.dialog}
+      <ProfileDialog mode={app.dialog.mode} id={app.dialog.mode === "edit" ? app.dialog.id : undefined} />
+    {/key}
   {/if}
   <Toast />
 </div>

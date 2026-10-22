@@ -34,10 +34,11 @@
 <style>
   .planet {
     position: absolute;
-    top: -40px;
-    right: -60px;
+    right: -120px;
+    bottom: -170px;
     width: 440px;
     height: 440px;
+    opacity: 0.55;
     pointer-events: none;
     filter: drop-shadow(0 0 70px rgb(127 119 221 / 0.35));
     animation: float 9s ease-in-out infinite;

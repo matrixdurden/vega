@@ -79,6 +79,13 @@ pub struct InstalledMod {
     pub filename: String,
     /// Pulled in because another mod needs it, not picked by the player.
     pub dependency: bool,
+    /// Disabled mods stay on disk as `<filename>.disabled`.
+    #[serde(default = "enabled_by_default")]
+    pub enabled: bool,
+}
+
+fn enabled_by_default() -> bool {
+    true
 }
 
 fn url(path: &str, params: &[(&str, &str)]) -> Result<String> {
@@ -145,6 +152,7 @@ pub async fn install(
             icon_url: project.icon_url,
             filename: file.filename.clone(),
             dependency,
+            enabled: true,
         };
         installed.push(entry.clone());
         added.push(entry);

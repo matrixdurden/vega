@@ -21,14 +21,19 @@ Vega is a Minecraft launcher that gets out of your way. Pick a version, add a fe
 
 <table>
   <tr>
-    <td><img src=".github/assets/screenshot-home.jpg" alt="Vega home screen"></td>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Vega mod browser"></td>
+    <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="A Vega profile with its mods"></td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Adding mods from Modrinth"></td>
+    <td><img src=".github/assets/screenshot-profile.jpg" alt="Creating a profile with an icon"></td>
   </tr>
 </table>
 
 ## Features
 
+- **Profiles front and centre.** Every profile sits in the sidebar with its own icon, Minecraft version, mods and worlds.
 - **Fabric in one click.** Profiles pin a Fabric loader version, so nothing changes under you.
+- **Mods you can switch off.** Turn a mod off without deleting it, or remove it for good.
 - **Modrinth built in.** Search, install and remove mods. Required dependencies such as Fabric API come along automatically.
 - **Java handled for you.** Vega installs the exact Java runtime each Minecraft version expects, from Mojang's own builds.
 - **Fast, verified downloads.** 32 parallel downloads, SHA-1 checks wherever the source publishes a hash, automatic retries, atomic writes.
@@ -46,8 +51,8 @@ Installers for Windows, macOS and Linux will be published on the [releases page]
 
 ## Roadmap
 
-- [x] Vanilla and Fabric profiles
-- [x] Modrinth search and installs with dependencies
+- [x] Vanilla and Fabric profiles with icons, per-profile memory and worlds
+- [x] Modrinth search and installs with dependencies, mods on/off
 - [x] Automatic Java runtimes
 - [x] Game console and crash notice
 - [ ] Microsoft account sign-in

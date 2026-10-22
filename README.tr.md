@@ -21,14 +21,19 @@ Vega, ayağına dolanmayan bir Minecraft launcher'ı. Sürümünü seç, Modrint
 
 <table>
   <tr>
-    <td><img src=".github/assets/screenshot-home.jpg" alt="Vega ana ekranı"></td>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Vega mod ekranı"></td>
+    <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="Modlarıyla birlikte bir Vega profili"></td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Modrinth'ten mod ekleme"></td>
+    <td><img src=".github/assets/screenshot-profile.jpg" alt="İkon seçerek profil oluşturma"></td>
   </tr>
 </table>
 
 ## Özellikler
 
+- **Her şey profilin etrafında.** Her profil sol panelde kendi ikonu, Minecraft sürümü, modları ve dünyalarıyla durur.
 - **Tek tıkla Fabric.** Profiller Fabric sürümünü sabitler, kimse habersiz bir şey değiştirmez.
+- **Kapatılabilir modlar.** Bir modu silmeden kapatabilir ya da tamamen kaldırabilirsin.
 - **Dahili Modrinth.** Mod ara, kur, kaldır. Fabric API gibi gerekli bağımlılıklar otomatik gelir.
 - **Java dert değil.** Her Minecraft sürümünün istediği Java'yı Mojang'ın kendi derlemelerinden kurar.
 - **Hızlı ve doğrulanmış indirme.** 32 paralel indirme, kaynağın hash yayınladığı her dosyada SHA-1 kontrolü, otomatik yeniden deneme, yarım dosya bırakmayan yazma.
@@ -46,8 +51,8 @@ Windows, macOS ve Linux kurulum dosyaları v0.1.0 ile birlikte [sürümler sayfa
 
 ## Yol haritası
 
-- [x] Vanilla ve Fabric profilleri
-- [x] Bağımlılıklarıyla birlikte Modrinth arama ve kurulum
+- [x] İkonlu Vanilla ve Fabric profilleri, profile özel bellek ve dünya listesi
+- [x] Bağımlılıklarıyla birlikte Modrinth arama ve kurulum, mod aç/kapat
 - [x] Otomatik Java
 - [x] Oyun konsolu ve çökme bildirimi
 - [ ] Microsoft hesabıyla giriş
