@@ -95,24 +95,6 @@ async fn create_modpack_profile(
     state.launcher.create_modpack_profile(&slug, &game_version, &name, &icon, progress).await
 }
 
-/// Raw upload: the body is the `.mrpack` file, the `x-name` and `x-icon`
-/// headers the profile's name (empty keeps the pack's) and icon.
-#[tauri::command]
-async fn import_modpack(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    request: tauri::ipc::Request<'_>,
-) -> CmdResult<Profile> {
-    let bytes = upload_body(&request)?;
-    // An empty header may be dropped on the way, which also means "no name".
-    let name = upload_header(&request, "x-name").unwrap_or_default();
-    let icon = upload_header(&request, "x-icon")?;
-    let progress: Progress = Arc::new(move |event| {
-        let _ = app.emit("install-progress", event);
-    });
-    state.launcher.import_modpack(bytes, &name, &icon, progress).await
-}
-
 /// Raw upload: the body is the `.jar`, `x-profile-id` and `x-file-name`
 /// headers say where it goes.
 #[tauri::command]
@@ -364,7 +346,6 @@ pub fn run() {
             search_modpacks,
             modpack_versions,
             create_modpack_profile,
-            import_modpack,
             add_mod_file,
             list_accounts,
             add_offline_account,

@@ -144,8 +144,6 @@ export const api = {
   modpackVersions: (slug: string) => call<string[]>("modpack_versions", { slug }),
   createModpackProfile: (slug: string, gameVersion: string, name: string, icon: string) =>
     call<Profile>("create_modpack_profile", { slug, gameVersion, name, icon }),
-  importModpack: (file: File, name: string, icon: string) =>
-    upload<Profile>("import_modpack", file, { "x-name": name, "x-icon": icon }),
 
   installedMods: (profileId: string) => call<InstalledMod[]>("installed_mods", { profileId }),
   searchMods: (profileId: string, query: string) => call<ModResult[]>("search_mods", { profileId, query }),

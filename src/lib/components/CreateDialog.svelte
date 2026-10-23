@@ -11,14 +11,10 @@
   import ProfileIcon from "./ProfileIcon.svelte";
 
   // Left: a live preview of the profile being made. Right: the name and icon,
-  // then one of four equal kinds of profile, each with its own small body.
-  type Kind = "vanilla" | "fabric" | "modrinth" | "file";
-  const kinds: { id: Kind; label: () => string }[] = [
-    { id: "vanilla", label: () => "Vanilla" },
-    { id: "fabric", label: () => "Fabric" },
-    { id: "modrinth", label: () => "Modrinth" },
-    { id: "file", label: () => t("create.file") },
-  ];
+  // then one of three equal kinds of profile, each with its own small body.
+  type Kind = "vanilla" | "fabric" | "modrinth";
+  const kinds: Kind[] = ["vanilla", "fabric", "modrinth"];
+  const labels: Record<Kind, string> = { vanilla: "Vanilla", fabric: "Fabric", modrinth: "Modrinth" };
 
   let kind = $state<Kind>("fabric");
   let busy = $state(false);
@@ -32,7 +28,6 @@
   let name = $state("");
   let version = $state("");
   let jars = $state<File[]>([]);
-  let packFile = $state<File | null>(null);
   let fileInput = $state<HTMLInputElement>();
   let dragging = $state(false);
 
@@ -44,21 +39,19 @@
   let packVersion = $state("");
   let packIcon = $state<string | null>(null);
 
-  const stem = (file: File) => file.name.replace(/\.(jar|mrpack)$/i, "");
+  const stem = (file: File) => file.name.replace(/\.jar$/i, "");
   const choices = $derived(app.versions.filter((v) => kind !== "fabric" || v.fabric));
   const shownIcon = $derived(icon ?? (kind === "modrinth" && pack ? (packIcon ?? "chest") : defaultIcon));
   const fallbackName = $derived.by(() => {
     if (kind === "modrinth") return pack?.title ?? "Modrinth";
-    if (kind === "file") return packFile ? stem(packFile) : t("create.modpack");
     if (kind === "fabric" && jars.length) return stem(jars[0]);
     return `${kind === "fabric" ? "Fabric" : "Vanilla"} ${version}`;
   });
-  const previewMeta = $derived.by(() => {
-    if (kind === "modrinth") return pack ? `${packVersion || "…"} · Modrinth` : "Modrinth";
-    if (kind === "file") return "Modrinth · .mrpack";
-    return `${version || "…"} · ${kind === "fabric" ? "Fabric" : "Vanilla"}`;
-  });
-  const ready = $derived(kind === "modrinth" ? !!pack && !!packVersion : kind === "file" ? !!packFile : !!version);
+  // Modpacks run on Fabric, so the preview reads the same as the profile will.
+  const previewMeta = $derived(
+    `${(kind === "modrinth" ? packVersion : version) || "…"} · ${kind === "vanilla" ? "Vanilla" : "Fabric"}`,
+  );
+  const ready = $derived(kind === "modrinth" ? !!pack && !!packVersion : !!version);
 
   // Fixed stars for the preview sky.
   const stars = Array.from({ length: 26 }, (_, i) => ({ x: (i * 37) % 100, y: (i * 53) % 70, big: i % 5 === 0 }));
@@ -85,6 +78,8 @@
       if (q === query) {
         packs = hits ?? [];
         searching = false;
+        // Start on the top pack so the preview never sits empty.
+        if (!pack && packs.length) pickPack(packs[0]);
       }
     }, q ? 300 : 0);
     return () => clearTimeout(timer);
@@ -103,18 +98,8 @@
     }
   }
 
-  // Files decide their own kind: a .mrpack is a modpack, jars ride on Fabric.
   function pickFiles(files: FileList | null | undefined) {
-    const list = [...(files ?? [])];
-    const mrpack = list.find((f) => f.name.toLowerCase().endsWith(".mrpack"));
-    const added = list.filter((f) => f.name.toLowerCase().endsWith(".jar"));
-    if (mrpack) {
-      packFile = mrpack;
-      kind = "file";
-    } else if (added.length) {
-      jars = [...jars, ...added];
-      kind = "fabric";
-    }
+    jars = [...jars, ...[...(files ?? [])].filter((f) => f.name.toLowerCase().endsWith(".jar"))];
     if (fileInput) fileInput.value = "";
   }
 
@@ -130,9 +115,6 @@
     if (kind === "modrinth" && pack) {
       const { slug, title } = pack;
       run(() => api.createModpackProfile(slug, packVersion, chosenName || title, chosenIcon));
-    } else if (kind === "file" && packFile) {
-      const file = packFile;
-      run(() => api.importModpack(file, chosenName, chosenIcon));
     } else {
       const loader = kind === "fabric" ? "fabric" : "vanilla";
       const files = loader === "fabric" ? jars : [];
@@ -201,15 +183,15 @@
       </div>
 
       <div class="segmented kinds" role="tablist">
-        {#each kinds as k (k.id)}
-          <button role="tab" aria-selected={kind === k.id} class:on={kind === k.id} onclick={() => (kind = k.id)} disabled={busy}>{k.label()}</button>
+        {#each kinds as k (k)}
+          <button role="tab" aria-selected={kind === k} class:on={kind === k} onclick={() => (kind = k)} disabled={busy}>{labels[k]}</button>
         {/each}
       </div>
 
       <div class="body">
         {#if kind === "vanilla"}
           <p class="hint center">{t("create.vanillaHint")}</p>
-        {:else if kind === "fabric" || kind === "file"}
+        {:else if kind === "fabric"}
           <button
             class="drop"
             class:over={dragging}
@@ -223,17 +205,13 @@
             disabled={busy}
           >
             <Icon name="upload" size={20} />
-            <span>{kind === "fabric" ? t("create.jars") : t("create.packFile")}</span>
+            <span>{t("create.jars")}</span>
           </button>
-          {#if kind === "fabric" && jars.length}
+          {#if jars.length}
             <div class="files">
               {#each jars as jar, i (jar.name + i)}
                 <span class="file">{jar.name}<button aria-label={t("mods.remove")} onclick={() => (jars = jars.filter((_, j) => j !== i))}><Icon name="x" size={13} /></button></span>
               {/each}
-            </div>
-          {:else if kind === "file" && packFile}
-            <div class="files">
-              <span class="file">{packFile.name}<button aria-label={t("mods.remove")} onclick={() => (packFile = null)}><Icon name="x" size={13} /></button></span>
             </div>
           {/if}
         {:else}
@@ -254,11 +232,11 @@
       </div>
 
       <div class="footer">
-        {#if kind === "vanilla" || kind === "fabric"}
+        {#if kind !== "modrinth"}
           <select class="input version" bind:value={version} aria-label={t("form.version")} disabled={busy || !choices.length}>
             {#each choices as choice (choice.id)}<option value={choice.id}>{choice.id}</option>{/each}
           </select>
-        {:else if kind === "modrinth"}
+        {:else}
           <select class="input version" bind:value={packVersion} aria-label={t("form.version")} disabled={busy || !pack}>
             {#if !packVersions.length}<option value="">{t("form.version")}</option>{/if}
             {#each packVersions as v (v)}<option value={v}>{v}</option>{/each}
@@ -269,14 +247,7 @@
           {#if busy}<Icon name="loader" size={15} class="spin" />{/if}{t("create.button")}
         </button>
       </div>
-      <input
-        bind:this={fileInput}
-        type="file"
-        accept={kind === "file" ? ".mrpack" : ".jar"}
-        multiple={kind !== "file"}
-        hidden
-        onchange={(e) => pickFiles(e.currentTarget.files)}
-      />
+      <input bind:this={fileInput} type="file" accept=".jar" multiple hidden onchange={(e) => pickFiles(e.currentTarget.files)} />
     </section>
   </div>
 </Modal>
@@ -419,7 +390,7 @@
 
   .kinds {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .body {

@@ -36,11 +36,8 @@ const tr = {
 
   "create.title": "Yeni profil",
   "create.button": "Oluştur",
-  "create.file": "Dosya",
-  "create.modpack": "Mod paketi",
   "create.vanillaHint": "Modsuz, saf Minecraft.",
   "create.jars": "İstersen client ya da mod .jar dosyalarını bırak",
-  "create.packFile": ".mrpack dosyasını bırak ya da seç",
   "create.searchModpacks": "Modrinth'te mod paketi ara",
 
   "mods.add": "Modrinth",
@@ -140,11 +137,8 @@ const en: Record<keyof typeof tr, string> = {
 
   "create.title": "New profile",
   "create.button": "Create",
-  "create.file": "File",
-  "create.modpack": "Modpack",
   "create.vanillaHint": "Plain Minecraft, no mods.",
   "create.jars": "Drop client or mod .jar files if you like",
-  "create.packFile": "Drop a .mrpack file or pick one",
   "create.searchModpacks": "Search Modrinth modpacks",
 
   "mods.add": "Modrinth",

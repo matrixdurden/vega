@@ -132,8 +132,6 @@ export async function mockCall<T>(command: string, args: Record<string, unknown>
         return ["26.3", "26.2", "1.21.11", "1.21.1"];
       case "create_modpack_profile":
         return simulateInstall(args.name as string, args.gameVersion as string, args.icon as string);
-      case "import_modpack":
-        return simulateInstall((args["x-name"] as string) || "Imported pack", "26.3", args["x-icon"] as string);
       case "game_versions":
         return versions;
       case "installed_mods":
