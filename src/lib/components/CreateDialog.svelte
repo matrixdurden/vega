@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, on, type Loader, type Profile, type Project } from "../api";
   import { compactNumber, t } from "../i18n.svelte";
+  import { toIconDataUrl } from "../images";
   import { pixelIconKeys } from "../pixelIcons";
   import { addProfile, app, attempt, loadVersions } from "../state.svelte";
   import Icon from "./Icon.svelte";
@@ -28,10 +29,19 @@
   let pack = $state<Project | null>(null);
   let packVersions = $state<string[]>([]);
   let packVersion = $state("");
+  // The pack's own icon as a data URL, offered next to the pixel icons.
+  let packIcon = $state<string | null>(null);
+  // Once the player picks an icon, a pack's icon no longer replaces it.
+  let iconChosen = false;
+  let picking = $state(false);
 
   const choices = $derived(app.versions.filter((v) => loader === "vanilla" || v.fabric));
-  const fallbackName = $derived(jars[0]?.name.replace(/\.jar$/i, "") ?? `${loader === "fabric" ? "Fabric" : "Vanilla"} ${version}`);
-  const previewName = $derived(view === "modrinth" && pack ? pack.title : name.trim() || fallbackName);
+  const fallbackName = $derived(
+    view === "modrinth" && pack
+      ? pack.title
+      : (jars[0]?.name.replace(/\.jar$/i, "") ?? `${loader === "fabric" ? "Fabric" : "Vanilla"} ${version}`),
+  );
+  const previewName = $derived(name.trim() || fallbackName);
   const previewMeta = $derived(
     view === "modrinth" ? (pack ? `${packVersion || "…"} · Fabric` : "") : `${version || "…"} · ${loader === "fabric" ? "Fabric" : "Vanilla"}`,
   );
@@ -97,14 +107,28 @@
       return profile;
     });
 
-  const install = () => pack && run(() => api.createModpackProfile(pack!.slug, packVersion, pack!.title, "chest"));
+  const install = () => pack && run(() => api.createModpackProfile(pack!.slug, packVersion, name.trim() || pack!.title, icon));
+
+  function chooseIcon(value: string) {
+    icon = value;
+    iconChosen = true;
+    picking = false;
+  }
 
   async function pickPack(p: Project) {
     pack = p;
     packVersions = [];
     packVersion = "";
-    packVersions = (await attempt(() => api.modpackVersions(p.slug))) ?? [];
+    packIcon = null;
+    const [versions, picture] = await Promise.all([
+      attempt(() => api.modpackVersions(p.slug)),
+      p.iconUrl ? toIconDataUrl(p.iconUrl).catch(() => null) : Promise.resolve(null),
+    ]);
+    if (pack !== p) return;
+    packVersions = versions ?? [];
     packVersion = packVersions[0] ?? "";
+    packIcon = picture;
+    if (!iconChosen) icon = picture ?? "chest";
   }
 
   const close = () => !busy && (app.createOpen = false);
@@ -117,11 +141,7 @@
         <span class="star" class:big={star.big} style:left="{star.x}%" style:top="{star.y}%"></span>
       {/each}
       <div class="card">
-        {#if view === "modrinth" && pack}
-          <ModIcon url={pack.iconUrl} title={pack.title} size={96} />
-        {:else}
-          <ProfileIcon {icon} size={96} />
-        {/if}
+        <ProfileIcon {icon} size={96} />
         <span class="mc title">{previewName}</span>
         <span class="meta">{previewMeta}</span>
         <span class="btn green fake">{t("profile.play")}</span>
@@ -151,7 +171,7 @@
           </select>
         </div>
 
-        <IconPicker value={icon} onchange={(value) => (icon = value)} />
+        <IconPicker value={icon} onchange={chooseIcon} />
 
         {#if jars.length}
           <div class="files">
@@ -185,6 +205,16 @@
             </button>
           {/each}
         </div>
+        {#if pack}
+          <!-- The pack only suggests a name and icon; both stay editable. -->
+          <div class="line">
+            <button class="icon-btn" aria-label={t("form.icon")} aria-expanded={picking} onclick={() => (picking = !picking)}>
+              <ProfileIcon {icon} size={38} />
+            </button>
+            <input class="input" bind:value={name} placeholder={pack.title} maxlength="40" aria-label={t("form.name")} />
+          </div>
+          {#if picking}<IconPicker value={icon} extra={packIcon} onchange={chooseIcon} />{/if}
+        {/if}
         <div class="footer">
           <select class="input pack-version" bind:value={packVersion} disabled={busy || !pack} aria-label={t("form.version")}>
             {#if !packVersions.length}<option value="">{t("form.version")}</option>{/if}
@@ -390,8 +420,19 @@
     padding-left: 36px;
   }
 
+  .icon-btn {
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 2px solid transparent;
+  }
+
+  .icon-btn:hover,
+  .icon-btn[aria-expanded="true"] {
+    border-color: var(--green-text);
+  }
+
   .packs {
-    height: 230px;
+    height: 200px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;

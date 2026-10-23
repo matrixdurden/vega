@@ -1,29 +1,26 @@
 <script lang="ts">
   import { t } from "../i18n.svelte";
+  import { toIconDataUrl } from "../images";
   import { pixelIconKeys } from "../pixelIcons";
   import { toast } from "../state.svelte";
   import Icon from "./Icon.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
 
-  let { value, onchange, size = 40 }: { value: string; onchange: (icon: string) => void; size?: number } = $props();
+  // `extra` is one more picture to offer, such as a modpack's own icon.
+  let {
+    value,
+    onchange,
+    size = 40,
+    extra = null,
+  }: { value: string; onchange: (icon: string) => void; size?: number; extra?: string | null } = $props();
 
-  const SIZE = 96;
   let input = $state<HTMLInputElement>();
-  const uploaded = $derived(value.startsWith("data:image/"));
+  const uploaded = $derived(value.startsWith("data:image/") && value !== extra);
 
-  // Squares and shrinks the picture so profiles.json stays small.
   async function upload(file: File | undefined) {
     if (!file) return;
     try {
-      const bitmap = await createImageBitmap(file);
-      const side = Math.min(bitmap.width, bitmap.height);
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = SIZE;
-      const ctx = canvas.getContext("2d")!;
-      // Keep pixel art crisp when it is scaled up.
-      ctx.imageSmoothingEnabled = side > SIZE;
-      ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
-      onchange(canvas.toDataURL("image/png"));
+      onchange(await toIconDataUrl(file));
     } catch {
       toast(t("form.uploadFailed"), "error");
     }
@@ -32,6 +29,11 @@
 </script>
 
 <div class="grid" role="radiogroup" aria-label={t("form.icon")} style:--tile="{size + 6}px">
+  {#if extra}
+    <button type="button" role="radio" aria-checked={value === extra} aria-label={t("form.packIcon")} class:on={value === extra} onclick={() => onchange(extra!)}>
+      <ProfileIcon icon={extra} {size} />
+    </button>
+  {/if}
   {#each pixelIconKeys as key (key)}
     <button type="button" role="radio" aria-checked={value === key} aria-label={key} class:on={value === key} onclick={() => onchange(key)}>
       <ProfileIcon icon={key} {size} />
