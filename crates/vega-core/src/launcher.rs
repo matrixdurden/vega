@@ -281,10 +281,12 @@ impl Launcher {
         .await
     }
 
-    /// Creates a profile from a `.mrpack` file the player picked.
-    pub async fn import_modpack(&self, bytes: Vec<u8>, icon: &str, progress: Progress) -> Result<Profile> {
+    /// Creates a profile from a `.mrpack` file the player picked. An empty
+    /// `name` keeps the pack's own name.
+    pub async fn import_modpack(&self, bytes: Vec<u8>, name: &str, icon: &str, progress: Progress) -> Result<Profile> {
         let info = mrpack::inspect(&bytes)?;
-        self.create_installed_profile(&info.name, icon, &info.game_version, |instance| async move {
+        let name = if name.trim().is_empty() { &info.name } else { name };
+        self.create_installed_profile(name, icon, &info.game_version, |instance| async move {
             Ok(mrpack::install_bytes(&self.http, bytes, &instance, &progress).await?.1)
         })
         .await
