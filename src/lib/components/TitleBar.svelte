@@ -42,7 +42,7 @@
   }
 
   button:hover {
-    background: var(--surface-hover);
+    background: var(--panel-2);
     color: var(--text);
   }
 

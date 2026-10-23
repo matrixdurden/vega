@@ -98,6 +98,15 @@ fn url(path: &str, params: &[(&str, &str)]) -> Result<String> {
 pub async fn search(http: &Http, query: &str, game: &str) -> Result<Vec<SearchHit>> {
     let facets =
         serde_json::json!([["project_type:mod"], [format!("categories:{LOADER}")], [format!("versions:{game}")]]);
+    search_with(http, query, facets).await
+}
+
+/// Fabric modpacks for any Minecraft version.
+pub async fn search_modpacks(http: &Http, query: &str) -> Result<Vec<SearchHit>> {
+    search_with(http, query, serde_json::json!([["project_type:modpack"], [format!("categories:{LOADER}")]])).await
+}
+
+async fn search_with(http: &Http, query: &str, facets: serde_json::Value) -> Result<Vec<SearchHit>> {
     let index = if query.trim().is_empty() { "downloads" } else { "relevance" };
     let url =
         url("/search", &[("query", query.trim()), ("facets", &facets.to_string()), ("index", index), ("limit", "30")])?;

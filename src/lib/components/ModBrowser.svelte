@@ -75,7 +75,7 @@
         <div class="info">
           <div class="name">
             <b>{mod.title}</b>
-            <span class="meta">{t("mods.by", { author: mod.author })}</span>
+            <span class="meta">{mod.author}</span>
           </div>
           <p class="desc">{mod.description}</p>
         </div>
@@ -136,12 +136,12 @@
     display: grid;
     place-items: center;
     border-radius: 4px;
-    background: var(--surface);
+    background: var(--panel-2);
     color: var(--text-2);
   }
 
   .close:hover {
-    background: var(--surface-hover);
+    background: var(--panel-2);
     color: var(--text);
   }
 
@@ -185,7 +185,7 @@
   }
 
   .row:hover {
-    border-color: #2b2850;
+    border-color: var(--border-strong);
   }
 
   .info {
@@ -232,7 +232,7 @@
   }
 
   .btn.added {
-    color: var(--success);
+    color: var(--green-text);
   }
 
   .btn.added:hover:not(:disabled) {

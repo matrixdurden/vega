@@ -47,7 +47,7 @@
     </div>
 
     <p class="about">
-      Vega 0.3.0 · {t("settings.about")}
+      Vega 0.4.0 · {t("settings.about")}
       <button class="link" onclick={openRepo}><Icon name="github" size={14} />GitHub</button>
     </p>
   </section>
@@ -69,7 +69,7 @@
     max-width: 720px;
     border-radius: 8px;
     background: var(--panel);
-    border: 2px solid #1d1a38;
+    border: 1px solid var(--border);
   }
 
   .row {
@@ -81,7 +81,7 @@
   }
 
   .row + .row {
-    border-top: 2px solid #1d1a38;
+    border-top: 1px solid var(--border);
   }
 
   .text {

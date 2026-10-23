@@ -73,7 +73,8 @@ export interface InstalledMod {
   enabled: boolean;
 }
 
-export interface ModResult {
+/** A Modrinth search result, for mods and modpacks alike. */
+export interface Project {
   projectId: string;
   slug: string;
   title: string;
@@ -81,6 +82,9 @@ export interface ModResult {
   iconUrl: string | null;
   downloads: number;
   author: string;
+}
+
+export interface ModResult extends Project {
   installed: boolean;
 }
 
@@ -110,6 +114,13 @@ function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   return isTauri ? invoke<T>(command, args) : mockCall<T>(command, args);
 }
 
+/** Sends a file's bytes as the raw request body, with string headers. */
+async function upload<T>(command: string, file: File, headers: Record<string, string>): Promise<T> {
+  const encoded = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k, encodeURIComponent(v)]));
+  if (!isTauri) return mockCall<T>(command, { ...headers, size: file.size });
+  return invoke<T>(command, new Uint8Array(await file.arrayBuffer()), { headers: encoded });
+}
+
 export function on<K extends keyof Events>(event: K, handler: (payload: Events[K]) => void): Promise<UnlistenFn> {
   return isTauri ? listen<Events[K]>(event, (e) => handler(e.payload)) : mockListen(event, handler);
 }
@@ -136,14 +147,22 @@ export const api = {
   createProfile: (draft: ProfileDraft) => call<Profile>("create_profile", { draft }),
   updateProfile: (id: string, draft: ProfileDraft) => call<Profile>("update_profile", { id, draft }),
   deleteProfile: (id: string) => call<void>("delete_profile", { id }),
+  gameVersions: () => call<GameVersion[]>("game_versions"),
+
   listClients: () => call<ClientInfo[]>("list_clients"),
   createClientProfile: (clientId: string, gameVersion: string, icon: string) =>
     call<Profile>("create_client_profile", { clientId, gameVersion, icon }),
-  gameVersions: () => call<GameVersion[]>("game_versions"),
+  searchModpacks: (query: string) => call<Project[]>("search_modpacks", { query }),
+  modpackVersions: (slug: string) => call<string[]>("modpack_versions", { slug }),
+  createModpackProfile: (slug: string, gameVersion: string, name: string, icon: string) =>
+    call<Profile>("create_modpack_profile", { slug, gameVersion, name, icon }),
+  importModpack: (file: File, icon: string) => upload<Profile>("import_modpack", file, { "x-icon": icon }),
 
   installedMods: (profileId: string) => call<InstalledMod[]>("installed_mods", { profileId }),
   searchMods: (profileId: string, query: string) => call<ModResult[]>("search_mods", { profileId, query }),
   installMod: (profileId: string, projectId: string) => call<InstalledMod[]>("install_mod", { profileId, projectId }),
+  addModFile: (profileId: string, file: File) =>
+    upload<InstalledMod[]>("add_mod_file", file, { "x-profile-id": profileId, "x-file-name": file.name }),
   setModEnabled: (profileId: string, projectId: string, enabled: boolean) =>
     call<InstalledMod[]>("set_mod_enabled", { profileId, projectId, enabled }),
   removeMod: (profileId: string, projectId: string) => call<InstalledMod[]>("remove_mod", { profileId, projectId }),

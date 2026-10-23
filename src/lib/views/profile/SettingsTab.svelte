@@ -107,12 +107,12 @@
     padding: 16px;
     border-radius: 8px;
     background: var(--panel);
-    border: 2px solid #1d1a38;
+    border: 1px solid var(--border);
   }
 
   h3 {
     margin-bottom: 12px;
-    font-family: var(--pixel);
+    font-family: var(--mc);
     font-size: 15px;
   }
 

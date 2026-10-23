@@ -24,7 +24,7 @@ Vega, ayağına dolanmayan bir Minecraft launcher'ı. Sürümünü seç, Modrint
     <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="Modlarıyla birlikte bir Vega profili"></td>
   </tr>
   <tr>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Hazır client kurulumu"></td>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Modrinth mod paketi kurulumu"></td>
     <td><img src=".github/assets/screenshot-profile.jpg" alt="Piksel ikonlu profil ayarları"></td>
   </tr>
 </table>
@@ -32,8 +32,8 @@ Vega, ayağına dolanmayan bir Minecraft launcher'ı. Sürümünü seç, Modrint
 ## Özellikler
 
 - **Her şey profilin etrafında.** Her profil sol panelde piksel sanat ikonu (ya da kendi resmin), Minecraft sürümü ve modlarıyla durur.
-- **Tek tıkla client.** [Meteor Client](https://meteorclient.com) ya da [Fabulously Optimized](https://modrinth.com/modpack/fabulously-optimized) oynamaya hazır bir profil olarak kurulur.
-- **Modrinth mod paketleri.** `.mrpack` dosyaları modları, ayarları ve istedikleri Fabric sürümüyle birlikte kurulur.
+- **İstediğin client, istediğin gibi.** Bir client ya da mod `.jar` dosyasını profile sürükle bırak, ya da doğrudan jar'dan yeni profil oluştur. [Meteor Client](https://meteorclient.com) tek tıkla da kurulur.
+- **Modrinth mod paketleri.** Modrinth'teki Fabric mod paketlerini ara ve kur ya da bir `.mrpack` dosyasını içe aktar. Modları, ayarları ve istedikleri Fabric sürümüyle gelir.
 - **Hesaplar.** Offline isimler ve Microsoft girişi (cihaz koduyla), birden fazla hesap yan yana.
 - **Kapatılabilir modlar.** Bir modu silmeden kapatabilir ya da tamamen kaldırabilirsin. Fabric API gibi gerekli bağımlılıklar otomatik gelir.
 - **Java dert değil.** Her Minecraft sürümünün istediği Java'yı Mojang'ın kendi derlemelerinden kurar.
@@ -122,6 +122,6 @@ npm run check
 
 ## Lisans
 
-Vega, [GNU General Public License v3.0 veya sonrası](LICENSE) ile lisanslanmış özgür bir yazılımdır.
+Vega, [GNU General Public License v3.0 veya sonrası](LICENSE) ile lisanslanmış özgür bir yazılımdır. İçindeki [Monocraft](https://github.com/IdreesInc/Monocraft) yazı tipi Idrees Hassan'a aittir ve [SIL Open Font License](src/assets/fonts/OFL.txt) ile dağıtılır.
 
 Vega resmi bir Minecraft ürünü değildir; Mojang veya Microsoft tarafından onaylanmamıştır ve onlarla bağlantılı değildir.

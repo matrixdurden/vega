@@ -1,6 +1,5 @@
 <script lang="ts">
   import AccountsDialog from "./lib/components/AccountsDialog.svelte";
-  import Backdrop from "./lib/components/Backdrop.svelte";
   import Console from "./lib/components/Console.svelte";
   import CreateDialog from "./lib/components/CreateDialog.svelte";
   import ModBrowser from "./lib/components/ModBrowser.svelte";
@@ -22,7 +21,6 @@
 </script>
 
 <div class="app">
-  <Backdrop />
   <TitleBar />
   <Sidebar />
 

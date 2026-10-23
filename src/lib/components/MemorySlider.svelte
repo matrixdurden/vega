@@ -37,7 +37,7 @@
     height: 6px;
     appearance: none;
     border-radius: 99px;
-    background: linear-gradient(to right, var(--accent) var(--fill), rgb(255 255 255 / 0.1) var(--fill));
+    background: linear-gradient(to right, var(--green) var(--fill), rgb(255 255 255 / 0.1) var(--fill));
     cursor: pointer;
   }
 
@@ -47,6 +47,6 @@
     height: 18px;
     border-radius: 50%;
     background: #fff;
-    border: 4px solid var(--accent);
+    border: 4px solid var(--green);
   }
 </style>

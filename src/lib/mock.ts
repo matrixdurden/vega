@@ -32,7 +32,6 @@ const versions: GameVersion[] = ["26.3", "26.2", "26.1", "1.21.11", "1.21.8", "1
 
 const clients: ClientInfo[] = [
   { id: "meteor", name: "Meteor Client", kind: "utility", homepage: "https://meteorclient.com", versions: ["26.3", "26.2", "1.21.11", "1.21.8"] },
-  { id: "fabulously-optimized", name: "Fabulously Optimized", kind: "performance", homepage: "https://modrinth.com/modpack/fabulously-optimized", versions: ["26.3", "26.2", "1.21.11"] },
 ];
 
 const catalog: Omit<ModResult, "installed">[] = [
@@ -121,6 +120,23 @@ export async function mockCall<T>(command: string, args: Record<string, unknown>
         return clients;
       case "create_client_profile":
         return simulateClientInstall(args.clientId as string, args.gameVersion as string, args.icon as string);
+      case "search_modpacks": {
+        const query = (args.query as string).toLowerCase();
+        return modpacks.filter((pack) => pack.title.toLowerCase().includes(query));
+      }
+      case "modpack_versions":
+        return ["26.3", "26.2", "1.21.11", "1.21.1"];
+      case "create_modpack_profile":
+        return simulateClientInstall(args.slug as string, args.gameVersion as string, args.icon as string, args.name as string);
+      case "import_modpack":
+        return simulateClientInstall("modpack", "26.3", args["x-icon"] as string, "Imported pack");
+      case "add_mod_file": {
+        const list = mods.get(args["x-profile-id"] as string) ?? [];
+        const filename = args["x-file-name"] as string;
+        list.push({ projectId: `file:${filename}`, versionId: "", versionNumber: "", title: filename.replace(/\.jar$/i, ""), iconUrl: null, filename, dependency: false, enabled: true });
+        mods.set(args["x-profile-id"] as string, list);
+        return list;
+      }
       case "game_versions":
         return versions;
       case "installed_mods":
@@ -172,15 +188,29 @@ export async function mockCall<T>(command: string, args: Record<string, unknown>
   return structuredClone(await result) as T;
 }
 
-async function simulateClientInstall(clientId: string, gameVersion: string, icon: string) {
-  const client = clients.find((c) => c.id === clientId)!;
+const modpacks = [
+  ["fabulously-optimized", "Fabulously Optimized", "Improved performance and graphics with the familiar vanilla feel.", 19_000_000, "robotkoer"],
+  ["additive", "Additive", "A modpack that adds content while staying close to vanilla.", 1_400_000, "Moxvallix"],
+  ["simply-optimized", "Simply Optimized", "The best performance mods, nothing else.", 4_100_000, "HeyItsKirby"],
+].map(([slug, title, description, downloads, author]) => ({
+  projectId: slug as string,
+  slug: slug as string,
+  title: title as string,
+  description: description as string,
+  downloads: downloads as number,
+  author: author as string,
+  iconUrl: null,
+}));
+
+async function simulateClientInstall(id: string, gameVersion: string, icon: string, name?: string) {
+  const title = name ?? clients.find((c) => c.id === id)?.name ?? id;
   for (let step = 0; step <= 10; step++) {
     emit("install-progress", { stage: "mods", done: step * 5, total: 50 });
     await sleep(80);
   }
-  const profile = newProfile({ name: client.name, icon, gameVersion, loader: "fabric", memoryMb: null }, clientId);
+  const profile = newProfile({ name: title, icon, gameVersion, loader: "fabric", memoryMb: null }, id);
   mods.set(profile.id, [
-    { projectId: clientId, versionId: "", versionNumber: gameVersion, title: client.name, iconUrl: null, filename: `${clientId}.jar`, dependency: false, enabled: true },
+    { projectId: id, versionId: "", versionNumber: gameVersion, title, iconUrl: null, filename: `${id}.jar`, dependency: false, enabled: true },
   ]);
   return profile;
 }

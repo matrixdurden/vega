@@ -1,40 +1,39 @@
 <script lang="ts">
-  import { pixelRuns } from "../pixelIcons";
+  import { pixelIconUrl } from "../pixelIcons";
 
   // `icon` is a built-in pixel icon key or an uploaded data: URL.
   let { icon, size = 40 }: { icon: string; size?: number } = $props();
 
   const uploaded = $derived(icon.startsWith("data:image/"));
-  const runs = $derived(uploaded ? [] : pixelRuns(icon));
+  const src = $derived(uploaded ? icon : pixelIconUrl(icon));
+  // Whole multiples of 16 keep every pixel of the art the same size.
+  const art = $derived(Math.max(16, Math.floor((size * 0.8) / 16) * 16));
 </script>
 
 <span class="slot" style:width="{size}px" style:height="{size}px">
   {#if uploaded}
-    <img src={icon} alt="" />
+    <img class="photo" {src} alt="" />
   {:else}
-    <svg viewBox="0 0 16 16" width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} shape-rendering="crispEdges" aria-hidden="true">
-      {#each runs as run, i (i)}
-        <rect x={run.x} y={run.y} width={run.w} height="1" fill={run.fill} />
-      {/each}
-    </svg>
+    <img class="pixel" {src} alt="" width={art} height={art} />
   {/if}
 </span>
 
 <style>
-  /* An inventory slot: dark, square, with a bevelled edge. */
   .slot {
     display: grid;
     place-items: center;
     flex-shrink: 0;
     overflow: hidden;
     border-radius: 4px;
-    background: #1d1b31;
-    box-shadow:
-      inset 2px 2px 0 rgb(0 0 0 / 0.35),
-      inset -2px -2px 0 rgb(255 255 255 / 0.06);
+    background: #2b2b32;
+    border: 1px solid #3a3a44;
   }
 
-  img {
+  .pixel {
+    image-rendering: pixelated;
+  }
+
+  .photo {
     width: 100%;
     height: 100%;
     object-fit: cover;

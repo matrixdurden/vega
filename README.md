@@ -24,7 +24,7 @@ Vega is a Minecraft launcher that gets out of your way. Pick a version, add a fe
     <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="A Vega profile with its mods"></td>
   </tr>
   <tr>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Installing a ready-made client"></td>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Installing a Modrinth modpack"></td>
     <td><img src=".github/assets/screenshot-profile.jpg" alt="Profile settings with pixel-art icons"></td>
   </tr>
 </table>
@@ -32,8 +32,8 @@ Vega is a Minecraft launcher that gets out of your way. Pick a version, add a fe
 ## Features
 
 - **Profiles front and centre.** Every profile sits in the sidebar with a pixel-art icon (or your own picture), its Minecraft version and its mods.
-- **Clients in one click.** Install [Meteor Client](https://meteorclient.com) or [Fabulously Optimized](https://modrinth.com/modpack/fabulously-optimized) as a ready-to-play profile.
-- **Modrinth modpacks.** `.mrpack` files are installed with their mods, configs and the exact Fabric version they ask for.
+- **Any client, your way.** Drop a client or mod `.jar` onto a profile, or start a new profile from one. [Meteor Client](https://meteorclient.com) also installs in one click.
+- **Modrinth modpacks.** Search and install Fabric modpacks from Modrinth, or import a `.mrpack` file, with their mods, configs and the exact Fabric version they ask for.
 - **Accounts.** Offline names and Microsoft sign-in (device code), with several accounts side by side.
 - **Mods you can switch off.** Turn a mod off without deleting it, or remove it for good. Required dependencies such as Fabric API come along automatically.
 - **Java handled for you.** Vega installs the exact Java runtime each Minecraft version expects, from Mojang's own builds.
@@ -122,6 +122,6 @@ npm run check
 
 ## License
 
-Vega is free software under the [GNU General Public License v3.0 or later](LICENSE).
+Vega is free software under the [GNU General Public License v3.0 or later](LICENSE). It ships the [Monocraft](https://github.com/IdreesInc/Monocraft) font by Idrees Hassan under the [SIL Open Font License](src/assets/fonts/OFL.txt).
 
 Vega is not an official Minecraft product and is not approved by or associated with Mojang or Microsoft.

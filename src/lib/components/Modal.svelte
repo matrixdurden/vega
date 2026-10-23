@@ -25,7 +25,7 @@
     z-index: 50;
     display: grid;
     place-items: center;
-    background: rgb(4 3 12 / 0.65);
+    background: rgb(0 0 0 / 0.6);
     animation: fade 0.15s ease;
   }
 
@@ -42,9 +42,9 @@
     flex-direction: column;
     gap: 16px;
     padding: 20px;
-    border-radius: 8px;
-    background: var(--bg-raised);
-    border: 2px solid #2b2850;
+    border-radius: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
     box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
     animation: rise 0.18s var(--ease);
   }
@@ -63,7 +63,7 @@
   }
 
   h2 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .close {
@@ -72,11 +72,11 @@
     display: grid;
     place-items: center;
     border-radius: 4px;
-    color: var(--text-3);
+    color: var(--text-2);
   }
 
   .close:hover {
-    background: var(--surface-hover);
+    background: var(--panel-2);
     color: var(--text);
   }
 </style>

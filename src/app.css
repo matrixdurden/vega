@@ -1,29 +1,42 @@
+/* Monocraft (OFL-1.1, see assets/fonts/OFL.txt), subset to Latin and Turkish. */
+@font-face {
+  font-family: "Monocraft";
+  src: url("./assets/fonts/monocraft-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Monocraft";
+  src: url("./assets/fonts/monocraft-700.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
-  --bg: #0b0a1a;
-  --bg-raised: #15132c;
-  --panel: rgb(16 14 36 / 0.94);
-  --surface: rgb(255 255 255 / 0.05);
-  --surface-hover: rgb(255 255 255 / 0.09);
-  --border: rgb(255 255 255 / 0.08);
-  --border-strong: rgb(255 255 255 / 0.16);
+  --bg: #17171b;
+  --sidebar: #1e1e23;
+  --panel: #232329;
+  --panel-2: #2b2b32;
+  --border: #34343c;
+  --border-strong: #4a4a54;
 
-  --text: #f0eefc;
-  --text-2: #b7b3dc;
-  --text-3: #7f7ba6;
+  --text: #f5f5f7;
+  --text-2: #c9c9d1;
+  --text-3: #9a9aa6;
 
-  --accent: #8a80f0;
-  --accent-soft: rgb(138 128 240 / 0.16);
   --green: #3c8527;
-  --green-hover: #469a2e;
-  --green-dark: #27561a;
-  --success: #6fd36b;
-  --danger: #f09595;
-  --danger-soft: rgb(240 149 149 / 0.12);
-  --warning: #fac775;
+  --green-hover: #47992f;
+  --green-dark: #2a5e1c;
+  --green-text: #86e073;
+  --select: rgb(134 224 115 / 0.1);
+  --danger: #ff8a80;
+  --danger-soft: rgb(255 138 128 / 0.12);
+  --warning: #ffcc66;
 
-  --radius: 6px;
+  --radius: 4px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --pixel: "Pixelify Sans", ui-monospace, monospace;
+  --mc: "Monocraft", ui-monospace, monospace;
 
   font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px;
@@ -52,12 +65,15 @@ body {
   user-select: none;
 }
 
+/* The Minecraft-style face: headings, buttons, tabs and names. */
 h1,
 h2,
-.pixel {
-  font-family: var(--pixel);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+h3,
+.mc {
+  font-family: var(--mc);
+  font-weight: 700;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
 }
 
 button {
@@ -70,7 +86,7 @@ button {
 
 button:disabled {
   cursor: default;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
 input,
@@ -80,7 +96,7 @@ select {
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--green-text);
   outline-offset: 2px;
 }
 
@@ -93,25 +109,28 @@ select {
   height: 36px;
   padding: 0 14px;
   border-radius: var(--radius);
-  background: #24213f;
-  box-shadow:
-    inset 0 -3px 0 rgb(0 0 0 / 0.3),
-    inset 0 1px 0 rgb(255 255 255 / 0.08);
-  font-weight: 600;
+  background: var(--panel-2);
+  border: 1px solid var(--border-strong);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.25);
+  font-family: var(--mc);
+  font-size: 13px;
+  font-variant-ligatures: none;
+  color: var(--text);
   transition: background 0.12s;
 }
 
 .btn:hover:not(:disabled) {
-  background: #2e2a50;
+  background: #35353e;
 }
 
 .btn:active:not(:disabled) {
-  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.3);
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.25);
   transform: translateY(1px);
 }
 
 .btn.green {
   background: var(--green);
+  border-color: #4fa337;
   color: #fff;
   box-shadow:
     inset 0 -4px 0 var(--green-dark),
@@ -131,14 +150,14 @@ select {
   height: 38px;
   padding: 0 12px;
   border-radius: var(--radius);
-  background: #120f26;
+  background: var(--bg);
   border: 1px solid var(--border-strong);
   outline: none;
   user-select: text;
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--green-text);
 }
 
 .input::placeholder {
@@ -146,7 +165,18 @@ select {
 }
 
 select.input option {
-  background: var(--bg-raised);
+  background: var(--panel);
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--text-3);
 }
 
 .segmented {
@@ -154,7 +184,7 @@ select.input option {
   gap: 4px;
   padding: 3px;
   border-radius: var(--radius);
-  background: #120f26;
+  background: var(--bg);
   border: 1px solid var(--border);
 }
 
@@ -162,14 +192,21 @@ select.input option {
   flex: 1;
   height: 30px;
   padding: 0 12px;
-  border-radius: 4px;
+  border-radius: 3px;
   color: var(--text-2);
-  font-weight: 600;
+  font-family: var(--mc);
+  font-size: 13px;
+  font-variant-ligatures: none;
+}
+
+.segmented button:hover:not(.on) {
+  color: var(--text);
 }
 
 .segmented button.on {
-  background: var(--accent);
-  color: #fff;
+  background: var(--panel-2);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--green-text);
 }
 
 .switch {
@@ -177,8 +214,8 @@ select.input option {
   width: 38px;
   height: 22px;
   flex-shrink: 0;
-  border-radius: 4px;
-  background: rgb(255 255 255 / 0.14);
+  border-radius: 3px;
+  background: #3a3a44;
   transition: background 0.15s;
 }
 
@@ -217,7 +254,7 @@ select.input option {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(255 255 255 / 0.1);
+  background: #3a3a44;
   border: 3px solid transparent;
   background-clip: padding-box;
 }

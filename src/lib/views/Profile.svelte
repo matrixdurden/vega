@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Backdrop from "../components/Backdrop.svelte";
   import Icon from "../components/Icon.svelte";
   import ProfileIcon from "../components/ProfileIcon.svelte";
   import { t, type Key } from "../i18n.svelte";
@@ -8,16 +9,17 @@
 
   const profile = $derived(selectedProfile());
   const percent = $derived(app.launch.total ? Math.round((app.launch.done / app.launch.total) * 100) : 0);
-  const subtitle = $derived(profile ? `${profile.loader === "fabric" ? "Fabric" : "Vanilla"} · ${profile.gameVersion}` : "");
 </script>
 
 <section class="profile">
+  <Backdrop />
+
   {#if profile}
     <header>
-      <ProfileIcon icon={profile.icon} size={56} />
+      <ProfileIcon icon={profile.icon} size={64} />
       <div class="title">
         <h1>{profile.name}</h1>
-        <span>{subtitle}</span>
+        <span>{profile.loader === "fabric" ? "Fabric" : "Vanilla"} · {profile.gameVersion}</span>
       </div>
 
       {#if app.launch.phase === "running"}
@@ -43,10 +45,6 @@
       <button role="tab" aria-selected={app.tab === "settings"} class:on={app.tab === "settings"} onclick={() => (app.tab = "settings")}>
         {t("tab.settings")}
       </button>
-      <span class="spacer"></span>
-      {#if app.tab === "mods" && profile.loader === "fabric"}
-        <button class="btn add-mod" onclick={() => (app.modBrowserOpen = true)}><Icon name="plus" size={15} />{t("mods.add")}</button>
-      {/if}
     </div>
 
     <div class="body">
@@ -63,7 +61,7 @@
   {:else if app.ready}
     <div class="empty">
       <h2>{t("profile.empty")}</h2>
-      <p>{t("profile.emptyBody")}</p>
+      <p class="hint">{t("profile.emptyBody")}</p>
       <button class="btn green" onclick={() => (app.createOpen = true)}><Icon name="plus" size={16} />{t("nav.newProfile")}</button>
     </div>
   {/if}
@@ -75,10 +73,11 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 44px 32px 0;
+    padding: 64px 32px 0;
   }
 
   header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -89,39 +88,39 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    gap: 2px;
   }
 
   h1 {
-    font-size: 28px;
-    line-height: 1.15;
+    font-size: 26px;
+    line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-shadow: 0 2px 0 rgb(0 0 0 / 0.45);
   }
 
   .title span {
-    color: var(--text-3);
+    color: var(--text-2);
     font-size: 13px;
   }
 
   .play {
     position: relative;
-    height: 50px;
-    min-width: 170px;
+    height: 52px;
+    min-width: 180px;
     padding: 0 28px;
     overflow: hidden;
-    font-family: var(--pixel);
     font-size: 20px;
   }
 
   .preparing,
   .running {
-    font-family: inherit;
     font-size: 13px;
   }
 
   .preparing {
-    background: #120f26;
+    background: var(--bg);
   }
 
   .fill {
@@ -137,12 +136,14 @@
   }
 
   .running {
-    background: #13301a;
-    color: var(--success);
+    background: #1d3a1a;
+    border-color: #2e5c28;
+    color: var(--green-text);
   }
 
   .running:hover {
-    background: #3a1717 !important;
+    background: #3a1c1c !important;
+    border-color: #6b2d2d;
     color: var(--danger);
   }
 
@@ -158,24 +159,25 @@
   }
 
   .tabs {
+    position: relative;
     display: flex;
-    align-items: center;
     gap: 4px;
-    margin-top: 22px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #1d1a38;
+    margin-top: 24px;
+    border-bottom: 1px solid var(--border);
   }
 
   .tabs [role="tab"] {
     display: flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 12px;
-    border-radius: 4px;
+    gap: 8px;
+    height: 38px;
+    padding: 0 14px;
+    margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
     color: var(--text-3);
-    font-family: var(--pixel);
-    font-size: 15px;
+    font-family: var(--mc);
+    font-size: 14px;
+    font-variant-ligatures: none;
   }
 
   .tabs [role="tab"]:hover {
@@ -183,31 +185,25 @@
   }
 
   .tabs [role="tab"].on {
-    background: var(--surface-hover);
     color: var(--text);
+    border-bottom-color: var(--green-text);
   }
 
   .count {
-    font-family: inherit;
-    font-size: 12px;
-    color: var(--text-3);
-  }
-
-  .spacer {
-    flex: 1;
-  }
-
-  .add-mod {
-    height: 32px;
-    font-size: 13px;
+    padding: 0 6px;
+    border-radius: 3px;
+    background: var(--panel-2);
+    color: var(--text-2);
+    font-size: 11px;
   }
 
   .body {
+    position: relative;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     margin: 0 -8px;
-    padding: 14px 8px 40px;
+    padding: 16px 8px 40px;
   }
 
   .console-toggle {
@@ -220,29 +216,24 @@
     height: 30px;
     padding: 0 10px;
     border-radius: 4px;
-    background: var(--bg-raised);
-    border: 1px solid var(--border);
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
     color: var(--text-2);
     font-size: 12px;
   }
 
   .empty {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    color: var(--text-3);
+    gap: 10px;
     text-align: center;
   }
 
   .empty h2 {
-    color: var(--text);
     font-size: 22px;
-  }
-
-  .empty p {
-    margin-bottom: 8px;
   }
 </style>

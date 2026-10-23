@@ -25,7 +25,7 @@
       ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
       value = canvas.toDataURL("image/png");
     } catch {
-      toast(t("form.uploadTooBig"), "error");
+      toast(t("form.uploadFailed"), "error");
     }
     input.value = "";
   }

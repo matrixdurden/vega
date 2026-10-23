@@ -9,8 +9,8 @@ use tokio::{
     sync::{Mutex, oneshot},
 };
 use vega_core::{
-    AccountSummary, ClientInfo, DeviceCode, Error, GameVersion, Launcher, ModResult, Paths, Profile, ProfileDraft,
-    Progress, Settings, modrinth::InstalledMod,
+    AccountSummary, ClientInfo, DeviceCode, Error, GameVersion, InstalledMod, Launcher, ModResult, Paths, Profile,
+    ProfileDraft, Progress, SearchHit, Settings,
 };
 
 type CmdResult<T> = Result<T, Error>;
@@ -69,6 +69,93 @@ async fn create_client_profile(
         let _ = app.emit("install-progress", event);
     });
     state.launcher.create_client_profile(&client_id, &game_version, &icon, progress).await
+}
+
+#[tauri::command]
+async fn search_modpacks(state: State<'_, AppState>, query: String) -> CmdResult<Vec<SearchHit>> {
+    state.launcher.search_modpacks(&query).await
+}
+
+#[tauri::command]
+async fn modpack_versions(state: State<'_, AppState>, slug: String) -> CmdResult<Vec<String>> {
+    state.launcher.modpack_versions(&slug).await
+}
+
+#[tauri::command]
+async fn create_modpack_profile(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    slug: String,
+    game_version: String,
+    name: String,
+    icon: String,
+) -> CmdResult<Profile> {
+    let progress: Progress = Arc::new(move |event| {
+        let _ = app.emit("install-progress", event);
+    });
+    state.launcher.create_modpack_profile(&slug, &game_version, &name, &icon, progress).await
+}
+
+/// Raw upload: the body is the `.mrpack` file, the `x-icon` header the icon.
+#[tauri::command]
+async fn import_modpack(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    request: tauri::ipc::Request<'_>,
+) -> CmdResult<Profile> {
+    let bytes = upload_body(&request)?;
+    let icon = upload_header(&request, "x-icon")?;
+    let progress: Progress = Arc::new(move |event| {
+        let _ = app.emit("install-progress", event);
+    });
+    state.launcher.import_modpack(bytes, &icon, progress).await
+}
+
+/// Raw upload: the body is the `.jar`, `x-profile-id` and `x-file-name`
+/// headers say where it goes.
+#[tauri::command]
+async fn add_mod_file(state: State<'_, AppState>, request: tauri::ipc::Request<'_>) -> CmdResult<Vec<InstalledMod>> {
+    let bytes = upload_body(&request)?;
+    let profile_id = upload_header(&request, "x-profile-id")?;
+    let file_name = upload_header(&request, "x-file-name")?;
+    state.launcher.add_local_mod(&profile_id, &file_name, bytes).await
+}
+
+fn upload_body(request: &tauri::ipc::Request<'_>) -> CmdResult<Vec<u8>> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(bytes) => Ok(bytes.clone()),
+        _ => Err(Error::other("expected the file's contents")),
+    }
+}
+
+/// Header values arrive percent-encoded so file names can hold any character.
+fn upload_header(request: &tauri::ipc::Request<'_>, name: &str) -> CmdResult<String> {
+    let value = request
+        .headers()
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| Error::other(format!("missing {name}")))?;
+    Ok(percent_decode(value))
+}
+
+fn percent_decode(value: &str) -> String {
+    let bytes = value.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = bytes.get(i + 1..i + 3).and_then(|h| std::str::from_utf8(h).ok());
+        match (bytes[i], hex.and_then(|h| u8::from_str_radix(h, 16).ok())) {
+            (b'%', Some(byte)) => {
+                out.push(byte);
+                i += 3;
+            }
+            (byte, _) => {
+                out.push(byte);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 #[tauri::command]
@@ -251,6 +338,11 @@ pub fn run() {
             delete_profile,
             list_clients,
             create_client_profile,
+            search_modpacks,
+            modpack_versions,
+            create_modpack_profile,
+            import_modpack,
+            add_mod_file,
             list_accounts,
             add_offline_account,
             set_active_account,

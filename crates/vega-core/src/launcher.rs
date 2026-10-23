@@ -10,11 +10,12 @@ use tokio::sync::{Mutex, oneshot};
 use crate::{
     Error, Result,
     account::{self, Account, AccountKind, AccountStore, AccountSummary, StoredAccount},
-    clients::{self, ClientInfo},
+    clients::{self, ClientInfo, ClientInstall},
     fabric,
     launch::{self, LaunchPlan, LaunchRequest},
+    localmod,
     modrinth::{self, InstalledMod, SearchHit},
-    mojang, msa,
+    mojang, mrpack, msa,
     net::{Http, Progress},
     paths::Paths,
     profile::{Loader, Profile, ProfileDraft, Settings},
@@ -268,23 +269,76 @@ impl Launcher {
         icon: &str,
         progress: Progress,
     ) -> Result<Profile> {
-        check_icon(icon)?;
         let name = clients::name(client_id).ok_or_else(|| Error::other(format!("unknown client {client_id}")))?;
+        self.create_installed_profile(name, icon, game_version, Some(client_id.to_owned()), |instance| async move {
+            clients::install(&self.http, client_id, game_version, &instance, &progress).await
+        })
+        .await
+    }
+
+    /// Fabric modpacks on Modrinth; an empty query lists the popular ones.
+    pub async fn search_modpacks(&self, query: &str) -> Result<Vec<SearchHit>> {
+        modrinth::search_modpacks(&self.http, query).await
+    }
+
+    /// Minecraft versions a Modrinth modpack has Fabric builds for.
+    pub async fn modpack_versions(&self, slug: &str) -> Result<Vec<String>> {
+        mrpack::game_versions(&self.http, slug).await
+    }
+
+    /// Creates a profile from a Modrinth modpack.
+    pub async fn create_modpack_profile(
+        &self,
+        slug: &str,
+        game_version: &str,
+        name: &str,
+        icon: &str,
+        progress: Progress,
+    ) -> Result<Profile> {
+        self.create_installed_profile(name, icon, game_version, None, |instance| async move {
+            mrpack::install(&self.http, slug, game_version, &instance, &progress).await
+        })
+        .await
+    }
+
+    /// Creates a profile from a `.mrpack` file the player picked.
+    pub async fn import_modpack(&self, bytes: Vec<u8>, icon: &str, progress: Progress) -> Result<Profile> {
+        let info = mrpack::inspect(&bytes)?;
+        self.create_installed_profile(&info.name, icon, &info.game_version, None, |instance| async move {
+            Ok(mrpack::install_bytes(&self.http, bytes, &instance, &progress).await?.1)
+        })
+        .await
+    }
+
+    /// Adds a Fabric profile, runs `install` in its folder and records what
+    /// it installed. The profile is removed again if installing fails.
+    async fn create_installed_profile<F, Fut>(
+        &self,
+        name: &str,
+        icon: &str,
+        game_version: &str,
+        client: Option<String>,
+        install: F,
+    ) -> Result<Profile>
+    where
+        F: FnOnce(PathBuf) -> Fut,
+        Fut: Future<Output = Result<ClientInstall>>,
+    {
+        check_icon(icon)?;
         let mut profile = self
             .add_profile(Profile {
                 id: String::new(),
-                name: name.to_owned(),
+                name: clean_name(name, game_version),
                 icon: icon.to_owned(),
                 game_version: game_version.to_owned(),
                 loader: Loader::Fabric,
                 loader_version: None,
-                client: Some(client_id.to_owned()),
+                client,
                 memory_mb: None,
                 last_played: None,
             })
             .await?;
-        let instance = self.paths.instance(&profile.id);
-        let installed = match clients::install(&self.http, client_id, game_version, &instance, &progress).await {
+        let installed = match install(self.paths.instance(&profile.id)).await {
             Ok(installed) => installed,
             Err(err) => {
                 let _ = self.delete_profile(&profile.id).await;
@@ -416,6 +470,31 @@ impl Launcher {
         // Keep track of whatever made it to disk, even if a later dependency failed.
         store::write_json(&self.mod_index(profile_id), &installed).await?;
         result.map(|_| installed)
+    }
+
+    /// Copies a `.jar` the player picked into the profile's mods folder,
+    /// replacing an earlier copy of the same mod or file.
+    pub async fn add_local_mod(&self, profile_id: &str, filename: &str, bytes: Vec<u8>) -> Result<Vec<InstalledMod>> {
+        let profile = self.profile(profile_id).await?;
+        if profile.loader == Loader::Vanilla {
+            return Err(Error::other("vanilla profiles cannot load mods, switch the profile to Fabric"));
+        }
+        let entry = localmod::describe(filename, &bytes)?;
+        let _guard = self.write_lock.lock().await;
+        let mods_dir = self.mods_dir(profile_id);
+        let mut installed = self.installed_mods(profile_id).await?;
+        if let Some(pos) =
+            installed.iter().position(|m| m.project_id == entry.project_id || m.filename == entry.filename)
+        {
+            let old = installed.remove(pos);
+            let old_file =
+                if old.enabled { mods_dir.join(&old.filename) } else { disabled_path(&mods_dir, &old.filename) };
+            let _ = tokio::fs::remove_file(old_file).await;
+        }
+        store::write_atomic(&mods_dir.join(&entry.filename), &bytes).await?;
+        installed.push(entry);
+        store::write_json(&self.mod_index(profile_id), &installed).await?;
+        Ok(installed)
     }
 
     /// Disabling renames `x.jar` to `x.jar.disabled`, which Fabric skips.
@@ -597,6 +676,40 @@ mod tests {
         launcher.save_settings(launcher.settings().await.unwrap()).await.unwrap();
         let resaved = tokio::fs::read_to_string(dir.path().join("settings.json")).await.unwrap();
         assert!(saved.contains("Steve") && !resaved.contains("Steve"));
+    }
+
+    #[tokio::test]
+    async fn local_jars_replace_older_copies() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let launcher = Launcher::new(Paths::new(dir.path())).unwrap();
+        let profile = Profile {
+            id: "p".into(),
+            name: "P".into(),
+            icon: "grass".into(),
+            game_version: "1.21.1".into(),
+            loader: Loader::Fabric,
+            loader_version: Some("0.16.10".into()),
+            client: None,
+            memory_mb: None,
+            last_played: None,
+        };
+        store::write_json(&launcher.paths.profiles_file(), &vec![profile]).await.unwrap();
+        let jar = |version: &str| {
+            let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+            writer.start_file("fabric.mod.json", zip::write::SimpleFileOptions::default()).unwrap();
+            write!(writer, r#"{{"id":"meteor-client","name":"Meteor Client","version":"{version}"}}"#).unwrap();
+            writer.finish().unwrap().into_inner()
+        };
+
+        launcher.add_local_mod("p", "meteor-1.jar", jar("1")).await.unwrap();
+        let list = launcher.add_local_mod("p", "meteor-2.jar", jar("2")).await.unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].version_number, "2");
+        let mods = dir.path().join("instances/p/mods");
+        assert!(mods.join("meteor-2.jar").exists() && !mods.join("meteor-1.jar").exists());
+        assert!(launcher.add_local_mod("p", "notes.txt", jar("3")).await.is_err());
     }
 
     #[tokio::test]

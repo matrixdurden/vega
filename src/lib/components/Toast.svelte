@@ -25,10 +25,10 @@
     max-width: min(520px, calc(100vw - 32px));
     padding: 10px 10px 10px 14px;
     border-radius: 12px;
-    background: var(--bg-raised);
+    background: var(--panel);
     border: 1px solid var(--border-strong);
     box-shadow: 0 16px 40px rgb(0 0 0 / 0.45);
-    color: var(--success);
+    color: var(--green-text);
     transform: translateX(-50%);
     animation: drop 0.25s var(--ease);
   }
@@ -52,7 +52,7 @@
   }
 
   button:hover {
-    background: var(--surface-hover);
+    background: var(--panel-2);
   }
 
   @keyframes drop {

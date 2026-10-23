@@ -13,7 +13,7 @@
     flex-shrink: 0;
     border-radius: 10px;
     object-fit: cover;
-    background: var(--surface);
+    background: var(--panel-2);
   }
 
   .placeholder {
@@ -21,6 +21,6 @@
     place-items: center;
     font-weight: 600;
     color: #cecbf6;
-    background: var(--accent-soft);
+    background: var(--select);
   }
 </style>

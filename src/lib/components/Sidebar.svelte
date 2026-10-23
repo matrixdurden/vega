@@ -9,15 +9,15 @@
 
 <nav>
   <div class="brand" data-tauri-drag-region>
-    <svg viewBox="0 0 8 8" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true">
-      <path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#f0eefc" />
-      <rect x="3" y="3" width="2" height="2" fill="#8a80f0" />
+    <svg viewBox="0 0 8 8" width="20" height="20" shape-rendering="crispEdges" aria-hidden="true">
+      <path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#f5f5f7" />
+      <rect x="3" y="3" width="2" height="2" fill="#86e073" />
     </svg>
-    <span class="pixel" data-tauri-drag-region>Vega</span>
+    <span class="mc" data-tauri-drag-region>Vega</span>
   </div>
 
   <div class="heading">
-    <span>{t("nav.profiles")}</span>
+    <span class="mc">{t("nav.profiles")}</span>
     <button class="add" aria-label={t("nav.newProfile")} title={t("nav.newProfile")} onclick={() => (app.createOpen = true)}>
       <Icon name="plus" size={16} />
     </button>
@@ -27,8 +27,11 @@
     {#each app.profiles as profile (profile.id)}
       {@const active = app.view === "profile" && profile.id === app.selectedId}
       <button class="item" class:active aria-current={active ? "page" : undefined} onclick={() => selectProfile(profile.id)}>
-        <ProfileIcon icon={profile.icon} size={34} />
-        <span class="name">{profile.name}</span>
+        <ProfileIcon icon={profile.icon} size={36} />
+        <span class="text">
+          <span class="name">{profile.name}</span>
+          <span class="meta">{profile.loader === "fabric" ? "Fabric" : "Vanilla"} {profile.gameVersion}</span>
+        </span>
         {#if app.launch.phase !== "idle" && profile.id === app.selectedId}
           <span class="live" class:running={app.launch.phase === "running"}></span>
         {/if}
@@ -38,16 +41,13 @@
 
   <div class="bottom">
     <button class="account" onclick={() => (app.accountsOpen = true)}>
-      <span class="avatar" class:ms={account?.kind === "microsoft"}>{account ? account.username.slice(0, 1).toUpperCase() : "?"}</span>
-      <span class="name">{account?.username ?? t("nav.noAccount")}</span>
+      <span class="avatar" class:ms={account?.kind === "microsoft"}>{account ? account.username.slice(0, 1).toUpperCase() : "+"}</span>
+      <span class="text">
+        <span class="name">{account?.username ?? t("nav.noAccount")}</span>
+        {#if account}<span class="meta">{account.kind === "microsoft" ? "Microsoft" : "Offline"}</span>{/if}
+      </span>
     </button>
-    <button
-      class="gear"
-      class:active={app.view === "settings"}
-      aria-label={t("nav.settings")}
-      title={t("nav.settings")}
-      onclick={() => (app.view = "settings")}
-    >
+    <button class="gear" class:active={app.view === "settings"} aria-label={t("nav.settings")} title={t("nav.settings")} onclick={() => (app.view = "settings")}>
       <Icon name="settings" size={18} />
     </button>
   </div>
@@ -57,13 +57,13 @@
   nav {
     position: relative;
     z-index: 25;
-    width: 220px;
+    width: 232px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     padding: 12px 10px;
-    background: var(--panel);
-    border-right: 2px solid #1d1a38;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
   }
 
   .brand {
@@ -72,8 +72,8 @@
     gap: 10px;
     height: 34px;
     padding: 0 8px;
-    margin-bottom: 14px;
-    font-size: 20px;
+    margin-bottom: 12px;
+    font-size: 18px;
   }
 
   .heading {
@@ -85,17 +85,22 @@
     color: var(--text-3);
   }
 
+  .heading .mc {
+    font-weight: 400;
+  }
+
   .add {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     display: grid;
     place-items: center;
     border-radius: 4px;
     color: var(--text-2);
+    border: 1px solid var(--border);
   }
 
   .add:hover {
-    background: var(--surface-hover);
+    background: var(--panel-2);
     color: var(--text);
   }
 
@@ -107,45 +112,58 @@
     gap: 2px;
   }
 
-  .item {
+  .item,
+  .account {
     width: 100%;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 5px 6px;
-    border-radius: 6px;
+    padding: 6px;
+    border-radius: 4px;
     text-align: left;
-    color: var(--text-2);
   }
 
-  .item:hover {
-    background: var(--surface-hover);
-    color: var(--text);
+  .item:hover,
+  .account:hover,
+  .gear:hover {
+    background: var(--panel-2);
   }
 
   .item.active {
-    background: var(--accent-soft);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--accent);
+    background: var(--select);
+    box-shadow: inset 3px 0 0 var(--green-text);
+  }
+
+  .text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .name {
-    flex: 1;
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 600;
+    font-family: var(--mc);
+    font-size: 13px;
+    font-variant-ligatures: none;
+    color: var(--text);
+  }
+
+  .meta {
+    font-size: 12px;
+    color: var(--text-3);
   }
 
   .live {
     width: 8px;
     height: 8px;
-    background: var(--accent);
+    background: var(--warning);
   }
 
   .live.running {
-    background: var(--success);
+    background: var(--green-text);
   }
 
   .bottom {
@@ -153,52 +171,38 @@
     gap: 4px;
     padding-top: 10px;
     margin-top: 10px;
-    border-top: 2px solid #1d1a38;
-  }
-
-  .account {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 5px 6px;
-    border-radius: 6px;
-    text-align: left;
-  }
-
-  .account:hover,
-  .gear:hover {
-    background: var(--surface-hover);
+    border-top: 1px solid var(--border);
   }
 
   .avatar {
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     flex-shrink: 0;
     border-radius: 4px;
-    background: #3a2a1a;
-    color: #e8b06a;
-    font-family: var(--pixel);
+    background: #5a3b1f;
+    color: #ffd59a;
+    font-family: var(--mc);
+    font-weight: 700;
   }
 
   .avatar.ms {
-    background: #0d3a24;
-    color: var(--success);
+    background: #1d4d23;
+    color: var(--green-text);
   }
 
   .gear {
-    width: 40px;
+    width: 42px;
+    flex-shrink: 0;
     display: grid;
     place-items: center;
-    border-radius: 6px;
+    border-radius: 4px;
     color: var(--text-2);
   }
 
   .gear.active {
-    background: var(--accent-soft);
+    background: var(--select);
     color: var(--text);
   }
 </style>

@@ -260,3 +260,23 @@ export function pixelRuns(key: string): { x: number; y: number; w: number; fill:
   });
   return runs;
 }
+
+const urls = new Map<string, string>();
+
+/** A 16x16 PNG of the icon. Shown with `image-rendering: pixelated`, the
+ *  browser scales it with hard edges at any zoom, unlike scaled SVG rects. */
+export function pixelIconUrl(key: string): string {
+  let url = urls.get(key);
+  if (!url) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 16;
+    const ctx = canvas.getContext("2d")!;
+    for (const run of pixelRuns(key)) {
+      ctx.fillStyle = run.fill;
+      ctx.fillRect(run.x, run.y, run.w, 1);
+    }
+    url = canvas.toDataURL("image/png");
+    urls.set(key, url);
+  }
+  return url;
+}

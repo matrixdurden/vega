@@ -41,6 +41,8 @@ struct Hashes {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Index {
+    #[serde(default)]
+    name: String,
     files: Vec<IndexFile>,
     dependencies: HashMap<String, String>,
 }
@@ -109,17 +111,55 @@ pub async fn install(
         .or_else(|| version.files.iter().find(|file| file.filename.ends_with(".mrpack")))
         .ok_or_else(|| Error::other(format!("{slug} has no .mrpack file")))?;
     let bytes = http.bytes(&pack.url, Some(&pack.hashes.sha1)).await?;
-
-    let (index, overrides) =
-        tokio::task::spawn_blocking(move || read_pack(bytes)).await.map_err(|err| Error::other(err.to_string()))??;
-    if index.dependencies.get("minecraft").map(String::as_str) != Some(game) {
+    let (info, installed) = install_bytes(http, bytes, instance, progress).await?;
+    if info.game_version != game {
         return Err(Error::other(format!("{slug} is not built for Minecraft {game}")));
     }
+    Ok(installed)
+}
+
+/// What a pack file says about itself.
+#[derive(Debug, Clone)]
+pub struct PackInfo {
+    pub name: String,
+    pub game_version: String,
+    pub loader_version: String,
+}
+
+/// Reads a pack's name, Minecraft version and Fabric version without
+/// installing anything. Only Fabric packs are supported.
+pub fn inspect(bytes: &[u8]) -> Result<PackInfo> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
+    let index: Index = serde_json::from_reader(archive.by_name("modrinth.index.json")?)?;
+    pack_info(&index)
+}
+
+fn pack_info(index: &Index) -> Result<PackInfo> {
+    let game_version = index
+        .dependencies
+        .get("minecraft")
+        .cloned()
+        .ok_or_else(|| Error::other("the modpack does not say which Minecraft version it needs"))?;
     let loader_version = index
         .dependencies
         .get("fabric-loader")
         .cloned()
-        .ok_or_else(|| Error::other(format!("{slug} is not a Fabric modpack")))?;
+        .ok_or_else(|| Error::other("only Fabric modpacks are supported for now"))?;
+    let name = if index.name.trim().is_empty() { "Modpack".to_owned() } else { index.name.trim().to_owned() };
+    Ok(PackInfo { name, game_version, loader_version })
+}
+
+/// Installs a pack file (its downloads and overrides) into `instance`.
+pub async fn install_bytes(
+    http: &Http,
+    bytes: Vec<u8>,
+    instance: &Path,
+    progress: &Progress,
+) -> Result<(PackInfo, ClientInstall)> {
+    let (index, overrides) =
+        tokio::task::spawn_blocking(move || read_pack(bytes)).await.map_err(|err| Error::other(err.to_string()))??;
+    let info = pack_info(&index)?;
+    let loader_version = info.loader_version.clone();
 
     let mut downloads = Vec::new();
     let mut mods = Vec::new();
@@ -142,7 +182,7 @@ pub async fn install(
         store::write_atomic(&instance.join(path), &bytes).await?;
     }
     name_mods(http, &mut mods).await;
-    Ok(ClientInstall { loader_version, mods })
+    Ok((info, ClientInstall { loader_version, mods }))
 }
 
 /// Files to copy over the game directory, as (relative path, contents).
