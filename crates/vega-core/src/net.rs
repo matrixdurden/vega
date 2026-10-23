@@ -16,7 +16,9 @@ use crate::{Error, Result, store};
 const USER_AGENT: &str =
     concat!("matrixdurden/vega/", env!("CARGO_PKG_VERSION"), " (https://github.com/matrixdurden/vega)");
 const PARALLEL_DOWNLOADS: usize = 32;
-const ATTEMPTS: u32 = 3;
+/// With exponential backoff this rides out about 7.5 seconds of network
+/// trouble (a dropped Wi-Fi or a DNS hiccup) before giving up.
+const ATTEMPTS: u32 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -87,6 +89,11 @@ impl Http {
         Ok(Self { client })
     }
 
+    /// The raw client, for requests that need more than a verified GET.
+    pub fn client(&self) -> &reqwest::Client {
+        &self.client
+    }
+
     pub async fn json<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
         Ok(serde_json::from_slice(&self.bytes(url, None).await?)?)
     }
@@ -120,7 +127,7 @@ impl Http {
         }
     }
 
-    /// GETs `url`, verifying `sha1` when given, with a short retry backoff.
+    /// GETs `url`, verifying `sha1` when given, retrying with backoff.
     pub async fn bytes(&self, url: &str, sha1: Option<&str>) -> Result<Vec<u8>> {
         let mut attempt = 1;
         loop {
@@ -128,7 +135,7 @@ impl Http {
                 Ok(bytes) => return Ok(bytes),
                 Err(err) if attempt >= ATTEMPTS => return Err(err),
                 Err(_) => {
-                    tokio::time::sleep(Duration::from_millis(400 * u64::from(attempt))).await;
+                    tokio::time::sleep(Duration::from_millis(500 << (attempt - 1))).await;
                     attempt += 1;
                 }
             }
@@ -161,7 +168,17 @@ impl Http {
     /// Downloads many files in parallel, reporting progress about a hundred
     /// times at most so the UI is not flooded by thousands of asset events.
     pub async fn fetch_all(&self, downloads: Vec<Download>, stage: Stage, progress: &Progress) -> Result<()> {
+        // One blocking pass over the disk is much cheaper than thousands of
+        // async metadata calls, and on a warm launch it is all that runs.
+        let downloads = tokio::task::spawn_blocking(move || {
+            downloads.into_iter().filter(|dl| !is_present_blocking(dl)).collect::<Vec<_>>()
+        })
+        .await
+        .map_err(|err| Error::other(err.to_string()))?;
         let total = downloads.len() as u64;
+        if total == 0 {
+            return Ok(());
+        }
         let step = (total / 100).max(1);
         let done = AtomicU64::new(0);
         progress(ProgressEvent { stage, done: 0, total });
@@ -187,6 +204,13 @@ impl Http {
 /// Size is a cheap integrity check; full hashes are verified on download.
 async fn is_present(dl: &Download) -> bool {
     match tokio::fs::metadata(&dl.path).await {
+        Ok(meta) => meta.is_file() && dl.size.is_none_or(|size| meta.len() == size),
+        Err(_) => false,
+    }
+}
+
+fn is_present_blocking(dl: &Download) -> bool {
+    match std::fs::metadata(&dl.path) {
         Ok(meta) => meta.is_file() && dl.size.is_none_or(|size| meta.len() == size),
         Err(_) => false,
     }

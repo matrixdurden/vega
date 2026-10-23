@@ -1,9 +1,10 @@
 <script lang="ts">
+  import AccountsDialog from "./lib/components/AccountsDialog.svelte";
+  import Backdrop from "./lib/components/Backdrop.svelte";
   import Console from "./lib/components/Console.svelte";
+  import CreateDialog from "./lib/components/CreateDialog.svelte";
   import ModBrowser from "./lib/components/ModBrowser.svelte";
-  import ProfileDialog from "./lib/components/ProfileDialog.svelte";
   import Sidebar from "./lib/components/Sidebar.svelte";
-  import Starfield from "./lib/components/Starfield.svelte";
   import TitleBar from "./lib/components/TitleBar.svelte";
   import Toast from "./lib/components/Toast.svelte";
   import { locale } from "./lib/i18n.svelte";
@@ -21,7 +22,7 @@
 </script>
 
 <div class="app">
-  <Starfield paused={app.launch.phase === "running"} />
+  <Backdrop />
   <TitleBar />
   <Sidebar />
 
@@ -39,11 +40,8 @@
     {/if}
   </main>
 
-  {#if app.dialog}
-    {#key app.dialog}
-      <ProfileDialog mode={app.dialog.mode} id={app.dialog.mode === "edit" ? app.dialog.id : undefined} />
-    {/key}
-  {/if}
+  {#if app.createOpen}<CreateDialog />{/if}
+  {#if app.accountsOpen}<AccountsDialog />{/if}
   <Toast />
 </div>
 
@@ -52,10 +50,7 @@
     position: relative;
     height: 100%;
     display: flex;
-    background:
-      radial-gradient(1200px 600px at 85% 0%, rgb(83 74 183 / 0.22), transparent 60%),
-      radial-gradient(900px 500px at 0% 100%, rgb(24 95 165 / 0.14), transparent 60%),
-      var(--bg);
+    background: var(--bg);
     overflow: hidden;
   }
 

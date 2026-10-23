@@ -20,19 +20,27 @@ async fn main() -> vega_core::Result<()> {
     let seconds: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(0);
 
     let launcher = Launcher::new(Paths::new(root))?;
-    launcher.save_settings(Settings { username: "VegaSmoke".into(), memory_mb: 2048, ..Settings::default() }).await?;
-    let draft = ProfileDraft {
-        name: format!("Smoke {game}"),
-        icon: "rocket".into(),
-        game_version: game.into(),
-        loader: Loader::Fabric,
-        memory_mb: None,
-    };
-    let profile = launcher.create_profile(draft).await?;
-    println!("profile: {} (fabric {:?})", profile.id, profile.loader_version);
+    launcher.save_settings(Settings { memory_mb: 2048, ..Settings::default() }).await?;
+    launcher.add_offline_account("VegaSmoke").await?;
 
-    let mods = launcher.install_mod(&profile.id, mod_slug).await?;
-    for m in &mods {
+    // `client:<id>` installs a ready-made client instead of a single mod.
+    let profile = match mod_slug.strip_prefix("client:") {
+        Some(client) => launcher.create_client_profile(client, game, "sword", Arc::new(|_| {})).await?,
+        None => {
+            let draft = ProfileDraft {
+                name: format!("Smoke {game}"),
+                icon: "grass".into(),
+                game_version: game.into(),
+                loader: Loader::Fabric,
+                memory_mb: None,
+            };
+            let profile = launcher.create_profile(draft).await?;
+            launcher.install_mod(&profile.id, mod_slug).await?;
+            profile
+        }
+    };
+    println!("profile: {} (fabric {:?})", profile.id, profile.loader_version);
+    for m in launcher.installed_mods(&profile.id).await? {
         println!("mod: {} {} dependency={}", m.title, m.version_number, m.dependency);
     }
 

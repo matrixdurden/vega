@@ -24,40 +24,45 @@ Vega, ayağına dolanmayan bir Minecraft launcher'ı. Sürümünü seç, Modrint
     <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="Modlarıyla birlikte bir Vega profili"></td>
   </tr>
   <tr>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Modrinth'ten mod ekleme"></td>
-    <td><img src=".github/assets/screenshot-profile.jpg" alt="İkon seçerek profil oluşturma"></td>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Hazır client kurulumu"></td>
+    <td><img src=".github/assets/screenshot-profile.jpg" alt="Piksel ikonlu profil ayarları"></td>
   </tr>
 </table>
 
 ## Özellikler
 
-- **Her şey profilin etrafında.** Her profil sol panelde kendi ikonu, Minecraft sürümü, modları ve dünyalarıyla durur.
-- **Tek tıkla Fabric.** Profiller Fabric sürümünü sabitler, kimse habersiz bir şey değiştirmez.
-- **Kapatılabilir modlar.** Bir modu silmeden kapatabilir ya da tamamen kaldırabilirsin.
-- **Dahili Modrinth.** Mod ara, kur, kaldır. Fabric API gibi gerekli bağımlılıklar otomatik gelir.
+- **Her şey profilin etrafında.** Her profil sol panelde piksel sanat ikonu (ya da kendi resmin), Minecraft sürümü ve modlarıyla durur.
+- **Tek tıkla client.** [Meteor Client](https://meteorclient.com) ya da [Fabulously Optimized](https://modrinth.com/modpack/fabulously-optimized) oynamaya hazır bir profil olarak kurulur.
+- **Modrinth mod paketleri.** `.mrpack` dosyaları modları, ayarları ve istedikleri Fabric sürümüyle birlikte kurulur.
+- **Hesaplar.** Offline isimler ve Microsoft girişi (cihaz koduyla), birden fazla hesap yan yana.
+- **Kapatılabilir modlar.** Bir modu silmeden kapatabilir ya da tamamen kaldırabilirsin. Fabric API gibi gerekli bağımlılıklar otomatik gelir.
 - **Java dert değil.** Her Minecraft sürümünün istediği Java'yı Mojang'ın kendi derlemelerinden kurar.
 - **Hızlı ve doğrulanmış indirme.** 32 paralel indirme, kaynağın hash yayınladığı her dosyada SHA-1 kontrolü, otomatik yeniden deneme, yarım dosya bırakmayan yazma.
-- **Hiçbir şey iki kez inmez.** Kütüphaneler, asset'ler ve Java profiller arasında paylaşılır. 1.21'de on profil, tek indirme demek.
-- **Oynarken ortadan kaybolur.** Oyun açıkken launcher kendini gizler ve animasyonlarını durdurur.
-- **Hafif.** Rust çekirdek ve sistemin web görünümünde çalışan Svelte 5 arayüz. İçinde koca bir tarayıcı taşımaz.
+- **Hızlı açılış.** Bir sürüm diskteyse Oyna'ya bastığında oyun açılmadan önce hiçbir ağ isteği yapılmaz.
+- **Hiçbir şey iki kez inmez.** Kütüphaneler, asset'ler ve Java profiller arasında paylaşılır.
+- **Hafif.** Rust çekirdek ve sistemin web görünümünde çalışan Svelte 5 arayüz. İçinde koca bir tarayıcı taşımaz, arka planda animasyon çalıştırmaz.
 - **Türkçe ve İngilizce.**
 
 ## İndir
 
-Windows, macOS ve Linux kurulum dosyaları v0.1.0 ile birlikte [sürümler sayfasında](https://github.com/matrixdurden/vega/releases) yayınlanacak.
+Windows, macOS ve Linux kurulum dosyaları [sürümler sayfasında](https://github.com/matrixdurden/vega/releases).
 
-> [!NOTE]
-> Vega şu an **offline hesap** kullanıyor. Microsoft girişi yol haritasında sıradaki iş ve Mojang'ın API onayını bekliyor. Lütfen oyunu satın al: offline mod geliştirme ve oyuna zaten sahip olanlar için var.
+> [!WARNING]
+> Meteor gibi hile client'ları çoğu sunucuda yasaktır. Tek oyunculu ya da izin veren sunucularda kullan.
+
+### Microsoft girişi
+
+Microsoft girişi için "Allow public client flows" açık olan ve Mojang'ın Minecraft API'si için onayladığı bir Azure uygulamasının kimliği gerekiyor ([başvuru](https://aka.ms/mce-reviewappid)). Vega bu kimliği derleme ya da çalışma anında `VEGA_MSA_CLIENT_ID` ortam değişkeninden okur. Sürüm iş akışı da aynı isimli bir depo secret'ından alır. Kimlik yoksa buton kapalı kalır, offline hesaplar yine çalışır. Lütfen oyunu satın al: offline mod oyuna zaten sahip olanlar için var.
 
 ## Yol haritası
 
-- [x] İkonlu Vanilla ve Fabric profilleri, profile özel bellek ve dünya listesi
+- [x] İkonlu Vanilla ve Fabric profilleri, profile özel bellek
 - [x] Bağımlılıklarıyla birlikte Modrinth arama ve kurulum, mod aç/kapat
 - [x] Otomatik Java
 - [x] Oyun konsolu ve çökme bildirimi
-- [ ] Microsoft hesabıyla giriş
+- [x] Offline ve Microsoft hesapları
+- [x] Hazır client'lar ve Modrinth mod paketleri (`.mrpack`)
 - [ ] NeoForge ve Quilt
-- [ ] Modrinth mod paketleri (`.mrpack`)
 - [ ] Neyin bozulduğunu açıklayan çökme analizcisi
 - [ ] Profil yedekleri ve tek tıkla geri alma
 - [ ] Otomatik güncelleme

@@ -56,7 +56,7 @@
 <section class="browser" aria-labelledby="mod-browser-title">
   <header>
     <div>
-      <h2 id="mod-browser-title">{t("mods.browserTitle")}</h2>
+      <h2 id="mod-browser-title">{t("mods.add")}</h2>
       <p>{t("mods.for", { profile: profile.name, version: profile.gameVersion })}</p>
     </div>
     <button class="close" aria-label={t("window.close")} onclick={close}><Icon name="x" /></button>
@@ -80,7 +80,7 @@
           <p class="desc">{mod.description}</p>
         </div>
         <span class="downloads"><Icon name="download" size={14} />{compactNumber(mod.downloads)}</span>
-        <button class="btn" class:primary={!mod.installed} class:added={mod.installed} disabled={busy.has(mod.projectId)} onclick={() => toggle(mod)}>
+        <button class="btn" class:green={!mod.installed} class:added={mod.installed} disabled={busy.has(mod.projectId)} onclick={() => toggle(mod)}>
           {#if busy.has(mod.projectId)}
             <Icon name="loader" size={16} class="spin" />
           {:else}
@@ -103,9 +103,8 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding: 46px 36px 0;
-    background: rgb(11 10 26 / 0.94);
-    backdrop-filter: blur(16px);
+    padding: 44px 32px 0;
+    background: var(--bg);
     animation: slide 0.22s var(--ease);
   }
 
@@ -124,8 +123,6 @@
 
   h2 {
     font-size: 26px;
-    font-weight: 650;
-    letter-spacing: -0.02em;
   }
 
   header p {
@@ -138,9 +135,8 @@
     height: 38px;
     display: grid;
     place-items: center;
-    border-radius: 10px;
+    border-radius: 4px;
     background: var(--surface);
-    border: 1px solid var(--border);
     color: var(--text-2);
   }
 
@@ -175,21 +171,21 @@
     padding: 0 8px 32px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .row {
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-radius: var(--radius);
-    background: rgb(18 16 42 / 0.7);
-    border: 1px solid var(--border);
+    background: var(--panel);
+    border: 2px solid transparent;
   }
 
   .row:hover {
-    border-color: var(--border-strong);
+    border-color: #2b2850;
   }
 
   .info {

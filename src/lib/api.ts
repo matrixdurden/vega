@@ -4,10 +4,9 @@ import { mockCall, mockListen } from "./mock";
 
 export type Loader = "vanilla" | "fabric";
 export type Stage = "metadata" | "libraries" | "assets" | "java" | "mods" | "starting";
-export type ProfileFolder = "mods" | "saves" | "resourcepacks" | "shaderpacks" | "screenshots";
+export type ProfileFolder = "mods" | "resourcepacks" | "shaderpacks" | "screenshots" | "saves";
 
 export interface Settings {
-  username: string;
   memoryMb: number;
   selectedProfile: string | null;
   language: "tr" | "en" | null;
@@ -17,15 +16,17 @@ export interface Settings {
 export interface Profile {
   id: string;
   name: string;
+  /** A pixel icon key or an uploaded data: URL. */
   icon: string;
   gameVersion: string;
   loader: Loader;
   loaderVersion: string | null;
+  client: string | null;
   memoryMb: number | null;
   lastPlayed: number | null;
 }
 
-/** What the profile dialog sends when creating or editing a profile. */
+/** What creating or editing a profile sends. */
 export interface ProfileDraft {
   name: string;
   icon: string;
@@ -34,9 +35,25 @@ export interface ProfileDraft {
   memoryMb: number | null;
 }
 
-export interface World {
+export interface Account {
+  id: string;
+  kind: "offline" | "microsoft";
+  username: string;
+  active: boolean;
+}
+
+export interface DeviceCode {
+  userCode: string;
+  verificationUri: string;
+  expiresIn: number;
+}
+
+export interface ClientInfo {
+  id: string;
   name: string;
-  lastPlayed: number | null;
+  kind: "utility" | "performance";
+  homepage: string;
+  versions: string[];
 }
 
 export interface GameVersion {
@@ -80,6 +97,7 @@ export interface LogLine {
 
 export interface Events {
   "launch-progress": ProgressEvent;
+  "install-progress": ProgressEvent;
   "game-started": null;
   "game-log": LogLine;
   "game-exited": number | null;
@@ -104,12 +122,25 @@ export function toDraft(profile: Profile): ProfileDraft {
 export const api = {
   getSettings: () => call<Settings>("get_settings"),
   saveSettings: (settings: Settings) => call<Settings>("save_settings", { settings }),
+
+  listAccounts: () => call<Account[]>("list_accounts"),
+  addOfflineAccount: (username: string) => call<Account[]>("add_offline_account", { username }),
+  setActiveAccount: (id: string) => call<Account[]>("set_active_account", { id }),
+  removeAccount: (id: string) => call<Account[]>("remove_account", { id }),
+  microsoftAvailable: () => call<boolean>("microsoft_available"),
+  startMicrosoftLogin: () => call<DeviceCode>("start_microsoft_login"),
+  finishMicrosoftLogin: () => call<Account[]>("finish_microsoft_login"),
+  cancelMicrosoftLogin: () => call<void>("cancel_microsoft_login"),
+
   listProfiles: () => call<Profile[]>("list_profiles"),
   createProfile: (draft: ProfileDraft) => call<Profile>("create_profile", { draft }),
   updateProfile: (id: string, draft: ProfileDraft) => call<Profile>("update_profile", { id, draft }),
   deleteProfile: (id: string) => call<void>("delete_profile", { id }),
-  listWorlds: (profileId: string) => call<World[]>("list_worlds", { profileId }),
+  listClients: () => call<ClientInfo[]>("list_clients"),
+  createClientProfile: (clientId: string, gameVersion: string, icon: string) =>
+    call<Profile>("create_client_profile", { clientId, gameVersion, icon }),
   gameVersions: () => call<GameVersion[]>("game_versions"),
+
   installedMods: (profileId: string) => call<InstalledMod[]>("installed_mods", { profileId }),
   searchMods: (profileId: string, query: string) => call<ModResult[]>("search_mods", { profileId, query }),
   installMod: (profileId: string, projectId: string) => call<InstalledMod[]>("install_mod", { profileId, projectId }),
@@ -118,6 +149,7 @@ export const api = {
   removeMod: (profileId: string, projectId: string) => call<InstalledMod[]>("remove_mod", { profileId, projectId }),
   openProfileFolder: (profileId: string, folder?: ProfileFolder) =>
     call<void>("open_profile_folder", { profileId, folder: folder ?? null }),
+
   launch: (profileId: string) => call<void>("launch", { profileId }),
   stopGame: () => call<void>("stop_game"),
 };

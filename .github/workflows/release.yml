@@ -60,6 +60,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Turns on Microsoft sign-in once the Azure app is approved.
+          VEGA_MSA_CLIENT_ID: ${{ secrets.VEGA_MSA_CLIENT_ID }}
         with:
           releaseId: ${{ needs.create-release.outputs.id }}
           args: ${{ matrix.args }}

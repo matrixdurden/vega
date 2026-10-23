@@ -1,6 +1,7 @@
 import {
   api,
   on,
+  type Account,
   type GameVersion,
   type InstalledMod,
   type LogLine,
@@ -8,14 +9,12 @@ import {
   type ProfileDraft,
   type Settings,
   type Stage,
-  type World,
 } from "./api";
 import { locale, t } from "./i18n.svelte";
 
 export type View = "profile" | "settings";
-export type ProfileTab = "mods" | "worlds" | "settings";
+export type ProfileTab = "mods" | "settings";
 type Toast = { id: number; kind: "info" | "error"; text: string };
-type Dialog = { mode: "create" } | { mode: "edit"; id: string };
 
 const MAX_LOG_LINES = 2000;
 
@@ -24,16 +23,17 @@ export const app = $state({
   view: "profile" as View,
   tab: "mods" as ProfileTab,
   settings: null as Settings | null,
+  accounts: [] as Account[],
   profiles: [] as Profile[],
   selectedId: null as string | null,
   mods: [] as InstalledMod[],
-  worlds: [] as World[],
   versions: [] as GameVersion[],
   launch: { phase: "idle" as "idle" | "preparing" | "running", stage: "metadata" as Stage, done: 0, total: 0 },
   logs: [] as LogLine[],
   consoleOpen: false,
   modBrowserOpen: false,
-  dialog: null as Dialog | null,
+  createOpen: false,
+  accountsOpen: false,
   toast: null as Toast | null,
 });
 
@@ -41,11 +41,15 @@ export function selectedProfile(): Profile | null {
   return app.profiles.find((profile) => profile.id === app.selectedId) ?? null;
 }
 
+export function activeAccount(): Account | null {
+  return app.accounts.find((account) => account.active) ?? null;
+}
+
 let toastTimer: ReturnType<typeof setTimeout>;
 export function toast(text: string, kind: Toast["kind"] = "info") {
   clearTimeout(toastTimer);
   app.toast = { id: Date.now(), kind, text };
-  toastTimer = setTimeout(() => (app.toast = null), kind === "error" ? 7000 : 3500);
+  toastTimer = setTimeout(() => (app.toast = null), kind === "error" ? 7000 : 3000);
 }
 
 export function errorText(err: unknown): string {
@@ -64,11 +68,13 @@ export async function attempt<T>(action: () => Promise<T>): Promise<T | undefine
 export async function init() {
   wireEvents();
   try {
-    const [settings, profiles] = await Promise.all([api.getSettings(), api.listProfiles()]);
+    const [settings, profiles, accounts] = await Promise.all([api.getSettings(), api.listProfiles(), api.listAccounts()]);
     app.settings = settings;
     if (settings.language) locale.lang = settings.language;
     app.profiles = profiles;
+    app.accounts = accounts;
     app.ready = true;
+    if (!accounts.length) app.accountsOpen = true;
 
     if (profiles.length === 0) await createFirstProfile();
     const remembered = app.profiles.find((p) => p.id === settings.selectedProfile);
@@ -79,7 +85,6 @@ export async function init() {
     app.ready = true;
     toast(errorText(err), "error");
   }
-  loadVersions();
 }
 
 async function createFirstProfile() {
@@ -91,6 +96,7 @@ async function createFirstProfile() {
   app.profiles = [profile];
 }
 
+/** Game versions are only fetched when a form needs them. */
 export async function loadVersions() {
   if (app.versions.length) return;
   try {
@@ -100,27 +106,18 @@ export async function loadVersions() {
   }
 }
 
-async function loadProfileData(id: string) {
-  const [mods, worlds] = await Promise.all([api.installedMods(id), api.listWorlds(id)]);
-  if (app.selectedId === id) {
-    app.mods = mods;
-    app.worlds = worlds;
-  }
-}
-
 export async function selectProfile(id: string, remember = true) {
   app.view = "profile";
   app.modBrowserOpen = false;
   if (app.selectedId === id) return;
   app.selectedId = id;
   app.mods = [];
-  app.worlds = [];
   if (remember) updateSettings({ selectedProfile: id });
-  await attempt(() => loadProfileData(id));
+  const mods = await attempt(() => api.installedMods(id));
+  if (mods && app.selectedId === id) app.mods = mods;
 }
 
-export async function createProfile(draft: ProfileDraft) {
-  const profile = await api.createProfile(draft);
+export async function addProfile(profile: Profile) {
   app.profiles.push(profile);
   app.tab = "mods";
   await selectProfile(profile.id);
@@ -157,6 +154,10 @@ export function updateSettings(patch: Partial<Settings>) {
 export async function launch() {
   const id = app.selectedId;
   if (!id || app.launch.phase !== "idle") return;
+  if (!activeAccount()) {
+    app.accountsOpen = true;
+    return;
+  }
   clearTimeout(saveTimer);
   await api.saveSettings($state.snapshot(app.settings!)).catch(() => {});
   app.launch = { phase: "preparing", stage: "metadata", done: 0, total: 1 };
@@ -188,7 +189,6 @@ function wireEvents() {
   });
   on("game-exited", (code) => {
     app.launch.phase = "idle";
-    if (app.selectedId) attempt(() => loadProfileData(app.selectedId!));
     if (code !== null && code !== 0) {
       toast(t("error.crashed", { code }), "error");
       app.consoleOpen = true;

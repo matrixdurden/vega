@@ -1,23 +1,24 @@
 <script lang="ts">
   import { t } from "../i18n.svelte";
-  import { app, selectProfile } from "../state.svelte";
+  import { activeAccount, app, selectProfile } from "../state.svelte";
   import Icon from "./Icon.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
+
+  const account = $derived(activeAccount());
 </script>
 
 <nav>
   <div class="brand" data-tauri-drag-region>
-    <span class="logo">
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-        <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="currentColor" />
-      </svg>
-    </span>
-    <span class="name" data-tauri-drag-region>Vega</span>
+    <svg viewBox="0 0 8 8" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true">
+      <path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#f0eefc" />
+      <rect x="3" y="3" width="2" height="2" fill="#8a80f0" />
+    </svg>
+    <span class="pixel" data-tauri-drag-region>Vega</span>
   </div>
 
   <div class="heading">
     <span>{t("nav.profiles")}</span>
-    <button class="add" aria-label={t("nav.newProfile")} title={t("nav.newProfile")} onclick={() => (app.dialog = { mode: "create" })}>
+    <button class="add" aria-label={t("nav.newProfile")} title={t("nav.newProfile")} onclick={() => (app.createOpen = true)}>
       <Icon name="plus" size={16} />
     </button>
   </div>
@@ -25,12 +26,9 @@
   <div class="list">
     {#each app.profiles as profile (profile.id)}
       {@const active = app.view === "profile" && profile.id === app.selectedId}
-      <button class="profile" class:active aria-current={active ? "page" : undefined} onclick={() => selectProfile(profile.id)}>
-        <ProfileIcon icon={profile.icon} size={36} />
-        <span class="text">
-          <span class="title">{profile.name}</span>
-          <span class="meta">{profile.loader === "fabric" ? "Fabric" : "Vanilla"} · {profile.gameVersion}</span>
-        </span>
+      <button class="item" class:active aria-current={active ? "page" : undefined} onclick={() => selectProfile(profile.id)}>
+        <ProfileIcon icon={profile.icon} size={34} />
+        <span class="name">{profile.name}</span>
         {#if app.launch.phase !== "idle" && profile.id === app.selectedId}
           <span class="live" class:running={app.launch.phase === "running"}></span>
         {/if}
@@ -39,16 +37,18 @@
   </div>
 
   <div class="bottom">
-    <button class="row" class:active={app.view === "settings"} onclick={() => (app.view = "settings")}>
-      <span class="glyph"><Icon name="settings" size={18} /></span>
-      {t("nav.settings")}
+    <button class="account" onclick={() => (app.accountsOpen = true)}>
+      <span class="avatar" class:ms={account?.kind === "microsoft"}>{account ? account.username.slice(0, 1).toUpperCase() : "?"}</span>
+      <span class="name">{account?.username ?? t("nav.noAccount")}</span>
     </button>
-    <button class="row account" onclick={() => (app.view = "settings")}>
-      <span class="avatar">{(app.settings?.username ?? "?").slice(0, 1).toUpperCase()}</span>
-      <span class="text">
-        <span class="title">{app.settings?.username ?? ""}</span>
-        <span class="meta">offline</span>
-      </span>
+    <button
+      class="gear"
+      class:active={app.view === "settings"}
+      aria-label={t("nav.settings")}
+      title={t("nav.settings")}
+      onclick={() => (app.view = "settings")}
+    >
+      <Icon name="settings" size={18} />
     </button>
   </div>
 </nav>
@@ -57,46 +57,30 @@
   nav {
     position: relative;
     z-index: 25;
-    width: 236px;
+    width: 220px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     padding: 12px 10px;
-    background: rgb(18 16 42 / 0.78);
-    border-right: 1px solid var(--border);
-    backdrop-filter: blur(14px);
+    background: var(--panel);
+    border-right: 2px solid #1d1a38;
   }
 
   .brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    height: 36px;
+    height: 34px;
     padding: 0 8px;
     margin-bottom: 14px;
-  }
-
-  .logo {
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    border-radius: 9px;
-    background: var(--text);
-    color: #26215c;
-  }
-
-  .name {
-    font-size: 16px;
-    font-weight: 650;
-    letter-spacing: -0.01em;
+    font-size: 20px;
   }
 
   .heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 6px 6px 10px;
+    padding: 0 4px 6px 8px;
     font-size: 12px;
     color: var(--text-3);
   }
@@ -106,7 +90,7 @@
     height: 26px;
     display: grid;
     place-items: center;
-    border-radius: 8px;
+    border-radius: 4px;
     color: var(--text-2);
   }
 
@@ -121,91 +105,71 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    margin: 0 -4px;
-    padding: 0 4px;
   }
 
-  .profile,
-  .row {
+  .item {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 11px;
-    padding: 7px 8px;
-    border-radius: 12px;
-    border: 1px solid transparent;
+    gap: 10px;
+    padding: 5px 6px;
+    border-radius: 6px;
     text-align: left;
-    transition: background 0.15s, border-color 0.15s;
+    color: var(--text-2);
   }
 
-  .profile:hover,
-  .row:hover {
+  .item:hover {
     background: var(--surface-hover);
+    color: var(--text);
   }
 
-  .profile.active,
-  .row.active {
+  .item.active {
     background: var(--accent-soft);
-    border-color: rgb(127 119 221 / 0.35);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--accent);
   }
 
-  .text {
-    min-width: 0;
+  .name {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .title {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .meta {
-    font-size: 11.5px;
-    color: var(--text-3);
+    font-weight: 600;
   }
 
   .live {
     width: 8px;
     height: 8px;
-    border-radius: 50%;
     background: var(--accent);
-    animation: pulse 1.4s ease-in-out infinite;
   }
 
   .live.running {
     background: var(--success);
   }
 
-  @keyframes pulse {
-    50% {
-      opacity: 0.35;
-    }
-  }
-
   .bottom {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    gap: 4px;
     padding-top: 10px;
     margin-top: 10px;
-    border-top: 1px solid var(--border);
+    border-top: 2px solid #1d1a38;
   }
 
-  .row {
-    color: var(--text-2);
+  .account {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 6px;
+    border-radius: 6px;
+    text-align: left;
   }
 
-  .glyph {
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    border-radius: 9px;
-    background: var(--surface);
+  .account:hover,
+  .gear:hover {
+    background: var(--surface-hover);
   }
 
   .avatar {
@@ -213,14 +177,28 @@
     height: 30px;
     display: grid;
     place-items: center;
-    border-radius: 9px;
-    background: #04342c;
-    color: var(--success);
-    font-weight: 600;
-    font-size: 13px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    background: #3a2a1a;
+    color: #e8b06a;
+    font-family: var(--pixel);
   }
 
-  .account .title {
+  .avatar.ms {
+    background: #0d3a24;
+    color: var(--success);
+  }
+
+  .gear {
+    width: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    color: var(--text-2);
+  }
+
+  .gear.active {
+    background: var(--accent-soft);
     color: var(--text);
   }
 </style>

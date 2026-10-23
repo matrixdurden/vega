@@ -1,26 +1,44 @@
 <script lang="ts">
-  import { api, toDraft, type Profile, type ProfileFolder } from "../../api";
+  import { untrack } from "svelte";
+  import { api, toDraft, type Loader, type Profile, type ProfileFolder } from "../../api";
   import Icon from "../../components/Icon.svelte";
   import MemorySlider from "../../components/MemorySlider.svelte";
+  import ProfileFields from "../../components/ProfileFields.svelte";
   import { t } from "../../i18n.svelte";
-  import { app, attempt, deleteProfile, updateProfile } from "../../state.svelte";
+  import { app, attempt, deleteProfile, toast, updateProfile } from "../../state.svelte";
 
   let { profile }: { profile: Profile } = $props();
 
-  const folders: ProfileFolder[] = ["mods", "saves", "resourcepacks", "shaderpacks", "screenshots"];
-  const globalMb = $derived(app.settings?.memoryMb ?? 4096);
+  const FOLDERS: ProfileFolder[] = ["mods", "resourcepacks", "shaderpacks", "screenshots", "saves"];
 
+  // The form edits a copy; Profile view re-creates this tab per profile.
+  const initial = untrack(() => toDraft(profile));
+  let icon = $state(initial.icon);
+  let name = $state(initial.name);
+  let loader = $state<Loader>(initial.loader);
+  let version = $state(initial.gameVersion);
+  let saving = $state(false);
   let confirmDelete = $state(false);
-  let saveTimer: ReturnType<typeof setTimeout>;
 
+  const globalMb = $derived(app.settings?.memoryMb ?? 4096);
+  const dirty = $derived(icon !== profile.icon || name.trim() !== profile.name || loader !== profile.loader || version !== profile.gameVersion);
+  const versionChanged = $derived(version !== profile.gameVersion || loader !== profile.loader);
+
+  async function save() {
+    saving = true;
+    const ok = await attempt(() => updateProfile(profile.id, { ...toDraft(profile), icon, name, loader, gameVersion: version }));
+    saving = false;
+    if (ok !== undefined) toast(t("form.saved"));
+  }
+
+  let memoryTimer: ReturnType<typeof setTimeout>;
   function setMemory(memoryMb: number | null) {
     const target = app.profiles.find((p) => p.id === profile.id);
     if (!target) return;
     target.memoryMb = memoryMb;
-    clearTimeout(saveTimer);
-    const id = target.id;
+    clearTimeout(memoryTimer);
     const draft = toDraft(target);
-    saveTimer = setTimeout(() => attempt(() => updateProfile(id, draft)), 400);
+    memoryTimer = setTimeout(() => attempt(() => updateProfile(target.id, draft)), 400);
   }
 
   function remove() {
@@ -33,85 +51,73 @@
   }
 </script>
 
-<div class="card">
-  <div class="row">
-    <div class="text">
-      <span class="label"><Icon name="memory" size={16} />{t("psettings.memory")}</span>
-      <span class="hint">{t("psettings.memoryHint")}</span>
+<div class="stack">
+  <section class="card">
+    <h3>{t("psettings.profile")}</h3>
+    <ProfileFields bind:icon bind:name bind:loader bind:version />
+    <div class="save">
+      {#if versionChanged && app.mods.length}<span class="warn"><Icon name="alert" size={14} />{t("form.modsWarning")}</span>{/if}
+      <button class="btn green" disabled={!dirty || saving} onclick={save}>
+        {#if saving}<Icon name="loader" size={15} class="spin" />{/if}{t("form.save")}
+      </button>
     </div>
-    <div class="memory">
+  </section>
+
+  <section class="card">
+    <h3>{t("psettings.memory")}</h3>
+    <div class="line">
       <label class="check">
         <input type="checkbox" checked={profile.memoryMb === null} onchange={(e) => setMemory(e.currentTarget.checked ? null : globalMb)} />
         {t("psettings.memoryDefault", { gb: globalMb / 1024 })}
       </label>
-      {#if profile.memoryMb !== null}
-        <MemorySlider value={profile.memoryMb} onchange={setMemory} />
-      {/if}
+      {#if profile.memoryMb !== null}<MemorySlider value={profile.memoryMb} onchange={setMemory} />{/if}
     </div>
-  </div>
+  </section>
 
-  <div class="row">
-    <div class="text">
-      <span class="label"><Icon name="folder" size={16} />{t("psettings.folders")}</span>
-    </div>
+  <section class="card">
+    <h3>{t("psettings.folders")}</h3>
     <div class="folders">
-      {#each folders as folder (folder)}
-        <button class="pill" onclick={() => attempt(() => api.openProfileFolder(profile.id, folder))}>{folder}</button>
+      <button class="btn" onclick={() => attempt(() => api.openProfileFolder(profile.id))}><Icon name="folder" size={15} />{t("psettings.openFolder")}</button>
+      {#each FOLDERS as folder (folder)}
+        <button class="btn" onclick={() => attempt(() => api.openProfileFolder(profile.id, folder))}>{folder}</button>
       {/each}
     </div>
-  </div>
+  </section>
 
-  <div class="row">
-    <div class="text">
-      <span class="label danger"><Icon name="trash" size={16} />{t("psettings.danger")}</span>
-      <span class="hint">{t("psettings.dangerHint")}</span>
+  <section class="card line">
+    <div>
+      <h3 class="danger">{t("psettings.delete")}</h3>
+      <p class="hint">{t("psettings.deleteHint")}</p>
     </div>
-    <button class="btn danger" class:armed={confirmDelete} onclick={remove}>
-      {confirmDelete ? t("psettings.confirmDelete") : t("psettings.delete")}
+    <button class="btn danger" onclick={remove}>
+      <Icon name="trash" size={15} />{confirmDelete ? t("psettings.confirmDelete") : t("psettings.delete")}
     </button>
-  </div>
+  </section>
 </div>
 
 <style>
-  .card {
-    max-width: 760px;
-    border-radius: 16px;
-    background: rgb(18 16 42 / 0.6);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-  }
-
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 16px 18px;
-  }
-
-  .row + .row {
-    border-top: 1px solid var(--border);
-  }
-
-  .text {
+  .stack {
+    max-width: 720px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 10px;
   }
 
-  .label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 500;
+  .card {
+    padding: 16px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 2px solid #1d1a38;
   }
 
-  .label :global(svg) {
-    color: var(--text-3);
+  h3 {
+    margin-bottom: 12px;
+    font-family: var(--pixel);
+    font-size: 15px;
   }
 
-  .label.danger,
-  .label.danger :global(svg) {
+  h3.danger {
+    margin-bottom: 2px;
     color: var(--danger);
   }
 
@@ -120,11 +126,28 @@
     color: var(--text-3);
   }
 
-  .memory {
+  .save {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .warn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--warning);
+  }
+
+  .line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
   }
 
   .check {
@@ -137,35 +160,19 @@
   }
 
   .check input {
-    accent-color: var(--accent);
     width: 16px;
     height: 16px;
+    accent-color: var(--green);
   }
 
   .folders {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-end;
     gap: 6px;
   }
 
-  .pill {
-    height: 30px;
-    padding: 0 12px;
-    border-radius: 99px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-2);
-    font-size: 12px;
-  }
-
-  .pill:hover {
-    background: var(--surface-hover);
-    color: var(--text);
-  }
-
-  .btn.danger.armed {
-    background: var(--danger-soft);
-    border-color: rgb(240 149 149 / 0.45);
+  .folders .btn {
+    height: 32px;
+    font-size: 12.5px;
   }
 </style>

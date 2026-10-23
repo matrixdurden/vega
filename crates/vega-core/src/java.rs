@@ -90,22 +90,19 @@ pub async fn ensure(http: &Http, paths: &Paths, component: &str, progress: &Prog
     let dir = paths.runtimes().join(component);
     let marker = dir.join(MARKER);
     let installed = tokio::fs::read_to_string(&marker).await.ok();
+    // An installed runtime is used as is; Mojang rarely rebuilds them and
+    // skipping the index check keeps launches free of network round trips.
+    if installed.is_some() && tokio::fs::try_exists(java_binary(&dir)).await.unwrap_or(false) {
+        return Ok(java_binary(&dir));
+    }
 
     let platform = platform().ok_or_else(|| Error::other("Mojang does not publish Java for this platform yet"))?;
-    let index: RuntimeIndex = match http.json(RUNTIMES_URL).await {
-        Ok(index) => index,
-        Err(_) if installed.is_some() => return Ok(java_binary(&dir)),
-        Err(err) => return Err(err),
-    };
+    let index: RuntimeIndex = http.json(RUNTIMES_URL).await?;
     let entry = index
         .get(platform)
         .and_then(|runtimes| runtimes.get(component))
         .and_then(|builds| builds.first())
         .ok_or_else(|| Error::other(format!("no Java build for {component} on {platform}")))?;
-    if installed.as_deref() == Some(entry.manifest.sha1.as_str()) {
-        return Ok(java_binary(&dir));
-    }
-
     let manifest: RuntimeManifest =
         http.json_cached(&entry.manifest.url, &dir.join("manifest.json"), Some(&entry.manifest.sha1)).await?;
     let mut downloads = Vec::new();

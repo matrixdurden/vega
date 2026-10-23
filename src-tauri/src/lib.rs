@@ -9,8 +9,8 @@ use tokio::{
     sync::{Mutex, oneshot},
 };
 use vega_core::{
-    Error, GameVersion, Launcher, ModResult, Paths, Profile, ProfileDraft, Progress, Settings, World,
-    modrinth::InstalledMod,
+    AccountSummary, ClientInfo, DeviceCode, Error, GameVersion, Launcher, ModResult, Paths, Profile, ProfileDraft,
+    Progress, Settings, modrinth::InstalledMod,
 };
 
 type CmdResult<T> = Result<T, Error>;
@@ -53,8 +53,63 @@ async fn update_profile(state: State<'_, AppState>, id: String, draft: ProfileDr
 }
 
 #[tauri::command]
-async fn list_worlds(state: State<'_, AppState>, profile_id: String) -> CmdResult<Vec<World>> {
-    state.launcher.worlds(&profile_id).await
+async fn list_clients(state: State<'_, AppState>) -> CmdResult<Vec<ClientInfo>> {
+    Ok(state.launcher.clients().await)
+}
+
+#[tauri::command]
+async fn create_client_profile(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    client_id: String,
+    game_version: String,
+    icon: String,
+) -> CmdResult<Profile> {
+    let progress: Progress = Arc::new(move |event| {
+        let _ = app.emit("install-progress", event);
+    });
+    state.launcher.create_client_profile(&client_id, &game_version, &icon, progress).await
+}
+
+#[tauri::command]
+async fn list_accounts(state: State<'_, AppState>) -> CmdResult<Vec<AccountSummary>> {
+    state.launcher.accounts().await
+}
+
+#[tauri::command]
+async fn add_offline_account(state: State<'_, AppState>, username: String) -> CmdResult<Vec<AccountSummary>> {
+    state.launcher.add_offline_account(&username).await
+}
+
+#[tauri::command]
+async fn set_active_account(state: State<'_, AppState>, id: String) -> CmdResult<Vec<AccountSummary>> {
+    state.launcher.set_active_account(&id).await
+}
+
+#[tauri::command]
+async fn remove_account(state: State<'_, AppState>, id: String) -> CmdResult<Vec<AccountSummary>> {
+    state.launcher.remove_account(&id).await
+}
+
+#[tauri::command]
+fn microsoft_available(state: State<'_, AppState>) -> bool {
+    state.launcher.microsoft_available()
+}
+
+#[tauri::command]
+async fn start_microsoft_login(state: State<'_, AppState>) -> CmdResult<DeviceCode> {
+    state.launcher.start_microsoft_login().await
+}
+
+#[tauri::command]
+async fn finish_microsoft_login(state: State<'_, AppState>) -> CmdResult<Vec<AccountSummary>> {
+    state.launcher.finish_microsoft_login().await
+}
+
+#[tauri::command]
+async fn cancel_microsoft_login(state: State<'_, AppState>) -> CmdResult<()> {
+    state.launcher.cancel_microsoft_login().await;
+    Ok(())
 }
 
 #[tauri::command]
@@ -194,7 +249,16 @@ pub fn run() {
             create_profile,
             update_profile,
             delete_profile,
-            list_worlds,
+            list_clients,
+            create_client_profile,
+            list_accounts,
+            add_offline_account,
+            set_active_account,
+            remove_account,
+            microsoft_available,
+            start_microsoft_login,
+            finish_microsoft_login,
+            cancel_microsoft_login,
             set_mod_enabled,
             game_versions,
             installed_mods,

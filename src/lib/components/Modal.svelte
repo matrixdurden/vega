@@ -1,0 +1,82 @@
+<script lang="ts">
+  import type { Snippet } from "svelte";
+  import { t } from "../i18n.svelte";
+  import Icon from "./Icon.svelte";
+
+  let { title, width = 520, onclose, children }: { title: string; width?: number; onclose: () => void; children: Snippet } = $props();
+</script>
+
+<svelte:window onkeydown={(e) => e.key === "Escape" && onclose()} />
+
+<div class="backdrop" role="presentation" onclick={(e) => e.target === e.currentTarget && onclose()}>
+  <div class="modal" role="dialog" aria-modal="true" aria-label={title} style:width="min({width}px, calc(100vw - 32px))">
+    <div class="head">
+      <h2>{title}</h2>
+      <button class="close" aria-label={t("window.close")} onclick={onclose}><Icon name="x" /></button>
+    </div>
+    {@render children()}
+  </div>
+</div>
+
+<style>
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    background: rgb(4 3 12 / 0.65);
+    animation: fade 0.15s ease;
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .modal {
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 8px;
+    background: var(--bg-raised);
+    border: 2px solid #2b2850;
+    box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
+    animation: rise 0.18s var(--ease);
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  .close {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    color: var(--text-3);
+  }
+
+  .close:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+</style>

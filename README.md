@@ -24,40 +24,45 @@ Vega is a Minecraft launcher that gets out of your way. Pick a version, add a fe
     <td colspan="2"><img src=".github/assets/screenshot-home.jpg" alt="A Vega profile with its mods"></td>
   </tr>
   <tr>
-    <td><img src=".github/assets/screenshot-mods.jpg" alt="Adding mods from Modrinth"></td>
-    <td><img src=".github/assets/screenshot-profile.jpg" alt="Creating a profile with an icon"></td>
+    <td><img src=".github/assets/screenshot-mods.jpg" alt="Installing a ready-made client"></td>
+    <td><img src=".github/assets/screenshot-profile.jpg" alt="Profile settings with pixel-art icons"></td>
   </tr>
 </table>
 
 ## Features
 
-- **Profiles front and centre.** Every profile sits in the sidebar with its own icon, Minecraft version, mods and worlds.
-- **Fabric in one click.** Profiles pin a Fabric loader version, so nothing changes under you.
-- **Mods you can switch off.** Turn a mod off without deleting it, or remove it for good.
-- **Modrinth built in.** Search, install and remove mods. Required dependencies such as Fabric API come along automatically.
+- **Profiles front and centre.** Every profile sits in the sidebar with a pixel-art icon (or your own picture), its Minecraft version and its mods.
+- **Clients in one click.** Install [Meteor Client](https://meteorclient.com) or [Fabulously Optimized](https://modrinth.com/modpack/fabulously-optimized) as a ready-to-play profile.
+- **Modrinth modpacks.** `.mrpack` files are installed with their mods, configs and the exact Fabric version they ask for.
+- **Accounts.** Offline names and Microsoft sign-in (device code), with several accounts side by side.
+- **Mods you can switch off.** Turn a mod off without deleting it, or remove it for good. Required dependencies such as Fabric API come along automatically.
 - **Java handled for you.** Vega installs the exact Java runtime each Minecraft version expects, from Mojang's own builds.
 - **Fast, verified downloads.** 32 parallel downloads, SHA-1 checks wherever the source publishes a hash, automatic retries, atomic writes.
-- **Nothing downloaded twice.** Libraries, assets and Java are shared between profiles. Ten profiles on 1.21 cost one download.
-- **Out of your way while you play.** The launcher hides itself while the game runs and pauses its animations.
-- **Light.** A native Rust core and a Svelte 5 UI on the system webview: no bundled browser.
+- **Fast warm launches.** Once a version is on disk, pressing Play makes no network requests before the game starts.
+- **Nothing downloaded twice.** Libraries, assets and Java are shared between profiles.
+- **Light.** A native Rust core and a Svelte 5 UI on the system webview, no bundled browser and no animations running in the background.
 - **Turkish and English.**
 
 ## Download
 
-Installers for Windows, macOS and Linux will be published on the [releases page](https://github.com/matrixdurden/vega/releases) starting with v0.1.0.
+Installers for Windows, macOS and Linux are on the [releases page](https://github.com/matrixdurden/vega/releases).
 
-> [!NOTE]
-> Vega currently uses **offline accounts**. Microsoft sign-in is next on the roadmap and is waiting for Mojang's API approval. Please buy the game: offline mode is meant for development and for people who already own Minecraft.
+> [!WARNING]
+> Hacked clients such as Meteor are banned on most servers. Use them in single player or on servers that allow them.
+
+### Microsoft sign-in
+
+Microsoft sign-in needs the id of an Azure app with "Allow public client flows" turned on and approved by Mojang for the Minecraft API ([apply here](https://aka.ms/mce-reviewappid)). Builds read it from the `VEGA_MSA_CLIENT_ID` environment variable at compile time or at run time; the release workflow takes it from a repository secret of the same name. Without it the button stays disabled and offline accounts still work. Please buy the game: offline mode is meant for people who already own Minecraft.
 
 ## Roadmap
 
-- [x] Vanilla and Fabric profiles with icons, per-profile memory and worlds
+- [x] Vanilla and Fabric profiles with icons and per-profile memory
 - [x] Modrinth search and installs with dependencies, mods on/off
 - [x] Automatic Java runtimes
 - [x] Game console and crash notice
-- [ ] Microsoft account sign-in
+- [x] Offline and Microsoft accounts
+- [x] Ready-made clients and Modrinth modpacks (`.mrpack`)
 - [ ] NeoForge and Quilt
-- [ ] Modrinth modpacks (`.mrpack`)
 - [ ] Crash analyser that explains what went wrong
 - [ ] Profile snapshots and one-click rollback
 - [ ] Auto-updates

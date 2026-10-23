@@ -14,7 +14,7 @@ pub enum Loader {
 pub struct Profile {
     pub id: String,
     pub name: String,
-    /// Key of one of the icons the UI offers.
+    /// A built-in icon key, or a `data:image/...` URL the player uploaded.
     #[serde(default = "default_icon")]
     pub icon: String,
     pub game_version: String,
@@ -22,6 +22,9 @@ pub struct Profile {
     /// Pinned when the profile is created so updates never surprise anyone.
     #[serde(default)]
     pub loader_version: Option<String>,
+    /// The ready-made client this profile was created from, if any.
+    #[serde(default)]
+    pub client: Option<String>,
     /// Overrides the global memory setting when set.
     #[serde(default)]
     pub memory_mb: Option<u32>,
@@ -31,7 +34,7 @@ pub struct Profile {
 }
 
 fn default_icon() -> String {
-    "cube".into()
+    "grass".into()
 }
 
 /// What the player fills in when creating or editing a profile.
@@ -46,30 +49,22 @@ pub struct ProfileDraft {
     pub memory_mb: Option<u32>,
 }
 
-/// A save in a profile's `saves` folder.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct World {
-    /// Folder name, which is also what the game shows unless renamed in-game.
-    pub name: String,
-    /// Unix seconds of the last save.
-    pub last_played: Option<u64>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
-    pub username: String,
     pub memory_mb: u32,
     pub selected_profile: Option<String>,
     /// `tr` or `en`; follows the system when unset.
     pub language: Option<String>,
     /// Hide the launcher while the game runs so it uses no GPU time.
     pub hide_on_launch: bool,
+    /// The offline name from before accounts existed; read once to migrate.
+    #[serde(rename = "username", skip_serializing)]
+    pub legacy_username: Option<String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { username: "Steve".into(), memory_mb: 4096, selected_profile: None, language: None, hide_on_launch: true }
+        Self { memory_mb: 4096, selected_profile: None, language: None, hide_on_launch: true, legacy_username: None }
     }
 }

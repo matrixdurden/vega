@@ -22,30 +22,20 @@
 </script>
 
 {#if profile.loader === "vanilla"}
-  <div class="empty">
-    <Icon name="puzzle" size={30} />
-    <h2>{t("mods.vanillaTitle")}</h2>
-    <p>{t("mods.vanillaBody")}</p>
-    <button class="btn" onclick={() => (app.dialog = { mode: "edit", id: profile.id })}><Icon name="pencil" size={16} />{t("profile.edit")}</button>
-  </div>
+  <p class="empty">{t("mods.vanilla")}</p>
 {:else if mods.length === 0}
   <div class="empty">
-    <Icon name="puzzle" size={30} />
-    <h2>{t("mods.none")}</h2>
-    <p>{t("mods.noneBody")}</p>
-    <button class="btn primary" onclick={() => (app.modBrowserOpen = true)}><Icon name="plus" size={16} />{t("mods.add")}</button>
+    <p>{t("mods.none")}</p>
+    <button class="btn green" onclick={() => (app.modBrowserOpen = true)}><Icon name="plus" size={16} />{t("mods.add")}</button>
   </div>
 {:else}
   <div class="list">
     {#each mods as mod (mod.projectId)}
       <article class="row" class:off={!mod.enabled}>
-        <ModIcon url={mod.iconUrl} title={mod.title} size={38} />
+        <ModIcon url={mod.iconUrl} title={mod.title} size={34} />
         <div class="info">
-          <div class="name">
-            <b>{mod.title}</b>
-            {#if mod.dependency}<span class="tag">{t("mods.dependency")}</span>{/if}
-          </div>
-          <span class="meta">{mod.versionNumber}</span>
+          <b>{mod.title}</b>
+          {#if mod.dependency}<span class="tag">{t("mods.dependency")}</span>{/if}
         </div>
         <button
           class="switch"
@@ -63,7 +53,7 @@
           disabled={busy.has(mod.projectId)}
           onclick={() => run(mod.projectId, () => api.removeMod(profile.id, mod.projectId))}
         >
-          <Icon name="trash" size={17} />
+          <Icon name="trash" size={16} />
         </button>
       </article>
     {/each}
@@ -74,94 +64,54 @@
   .list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .row {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 9px 12px;
-    border-radius: 12px;
-    background: rgb(18 16 42 / 0.55);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(8px);
-    transition: opacity 0.15s, border-color 0.15s;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: var(--panel);
+    border: 2px solid transparent;
   }
 
   .row:hover {
-    border-color: var(--border-strong);
+    border-color: #2b2850;
   }
 
   .row.off .info,
   .row.off :global(.mod-icon) {
-    opacity: 0.45;
+    opacity: 0.4;
   }
 
   .info {
     flex: 1;
     min-width: 0;
-  }
-
-  .name {
     display: flex;
     align-items: baseline;
     gap: 8px;
   }
 
-  .name b {
+  .info b {
     font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tag {
-    padding: 1px 7px;
-    border-radius: 6px;
-    background: var(--surface-hover);
-    color: var(--text-3);
     font-size: 11px;
-  }
-
-  .meta {
-    font-size: 12px;
     color: var(--text-3);
-  }
-
-  .switch {
-    position: relative;
-    width: 38px;
-    height: 22px;
-    flex-shrink: 0;
-    border-radius: 99px;
-    background: rgb(255 255 255 / 0.14);
-    transition: background 0.2s;
-  }
-
-  .switch::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #fff;
-    transition: transform 0.2s var(--ease);
-  }
-
-  .switch[aria-checked="true"] {
-    background: var(--accent);
-  }
-
-  .switch[aria-checked="true"]::after {
-    transform: translateX(16px);
   }
 
   .remove {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
     display: grid;
     place-items: center;
-    border-radius: 9px;
+    border-radius: 4px;
     color: var(--text-3);
   }
 
@@ -174,20 +124,9 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    padding: 56px 20px;
-    text-align: center;
+    gap: 12px;
+    padding: 48px 20px;
     color: var(--text-3);
-  }
-
-  .empty h2 {
-    color: var(--text);
-    font-size: 17px;
-    font-weight: 600;
-  }
-
-  .empty p {
-    max-width: 360px;
-    margin-bottom: 8px;
+    text-align: center;
   }
 </style>

@@ -1,28 +1,31 @@
 :root {
   --bg: #0b0a1a;
-  --bg-raised: #12102a;
-  --surface: rgb(255 255 255 / 0.04);
-  --surface-hover: rgb(255 255 255 / 0.07);
+  --bg-raised: #15132c;
+  --panel: rgb(16 14 36 / 0.94);
+  --surface: rgb(255 255 255 / 0.05);
+  --surface-hover: rgb(255 255 255 / 0.09);
   --border: rgb(255 255 255 / 0.08);
   --border-strong: rgb(255 255 255 / 0.16);
 
-  --text: #eeedfe;
-  --text-2: #b4b0e0;
-  --text-3: #7d79a8;
+  --text: #f0eefc;
+  --text-2: #b7b3dc;
+  --text-3: #7f7ba6;
 
-  --accent: #7f77dd;
-  --accent-hover: #8e87e8;
-  --accent-press: #6a62cc;
-  --accent-soft: rgb(127 119 221 / 0.16);
-  --success: #5dcaa5;
+  --accent: #8a80f0;
+  --accent-soft: rgb(138 128 240 / 0.16);
+  --green: #3c8527;
+  --green-hover: #469a2e;
+  --green-dark: #27561a;
+  --success: #6fd36b;
   --danger: #f09595;
   --danger-soft: rgb(240 149 149 / 0.12);
+  --warning: #fac775;
 
-  --radius: 14px;
-  --radius-sm: 10px;
+  --radius: 6px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pixel: "Pixelify Sans", ui-monospace, monospace;
 
-  font-family: "Inter Variable", system-ui, sans-serif;
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
@@ -49,6 +52,14 @@ body {
   user-select: none;
 }
 
+h1,
+h2,
+.pixel {
+  font-family: var(--pixel);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 button {
   font: inherit;
   color: inherit;
@@ -73,33 +84,42 @@ select {
   outline-offset: 2px;
 }
 
+/* Blocky buttons with a Minecraft-style bevel. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-weight: 500;
-  transition: background 0.15s, border-color 0.15s;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius);
+  background: #24213f;
+  box-shadow:
+    inset 0 -3px 0 rgb(0 0 0 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  font-weight: 600;
+  transition: background 0.12s;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
+  background: #2e2a50;
 }
 
-.btn.primary {
-  background: var(--accent);
-  border-color: transparent;
+.btn:active:not(:disabled) {
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 0.3);
+  transform: translateY(1px);
+}
+
+.btn.green {
+  background: var(--green);
   color: #fff;
+  box-shadow:
+    inset 0 -4px 0 var(--green-dark),
+    inset 0 2px 0 rgb(255 255 255 / 0.18);
 }
 
-.btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+.btn.green:hover:not(:disabled) {
+  background: var(--green-hover);
 }
 
 .btn.danger {
@@ -108,18 +128,13 @@ select {
 
 .input {
   width: 100%;
-  height: 40px;
+  height: 38px;
   padding: 0 12px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #120f26;
+  border: 1px solid var(--border-strong);
   outline: none;
-  transition: border-color 0.15s;
   user-select: text;
-}
-
-.input:hover {
-  border-color: var(--border-strong);
 }
 
 .input:focus {
@@ -132,6 +147,59 @@ select {
 
 select.input option {
   background: var(--bg-raised);
+}
+
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius);
+  background: #120f26;
+  border: 1px solid var(--border);
+}
+
+.segmented button {
+  flex: 1;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 4px;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.segmented button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.14);
+  transition: background 0.15s;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: #fff;
+  transition: transform 0.15s var(--ease);
+}
+
+.switch[aria-checked="true"] {
+  background: var(--green);
+}
+
+.switch[aria-checked="true"]::after {
+  transform: translateX(16px);
 }
 
 .spin {
@@ -150,7 +218,6 @@ select.input option {
 
 ::-webkit-scrollbar-thumb {
   background: rgb(255 255 255 / 0.1);
-  border-radius: 10px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }

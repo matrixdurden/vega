@@ -118,7 +118,7 @@ pub async fn prepare(
         ("auth_uuid", account.uuid.clone()),
         ("auth_access_token", account.access_token.clone()),
         ("auth_session", account.access_token.clone()),
-        ("auth_xuid", "0".into()),
+        ("auth_xuid", account.xuid.clone().unwrap_or_else(|| "0".into())),
         ("clientid", String::new()),
         ("user_type", account.user_type.into()),
         ("user_properties", "{}".into()),
@@ -156,13 +156,21 @@ pub async fn prepare(
 }
 
 async fn resolve_version(http: &Http, paths: &Paths, profile: &Profile) -> Result<VersionJson> {
-    let manifest = mojang::manifest(http, paths).await?;
-    let entry = manifest
-        .versions
-        .iter()
-        .find(|version| version.id == profile.game_version)
-        .ok_or_else(|| Error::other(format!("unknown Minecraft version {}", profile.game_version)))?;
-    let vanilla: VersionJson = http.json_cached(&entry.url, &paths.version_json(&entry.id), Some(&entry.sha1)).await?;
+    // A version JSON never changes once released, so a saved copy (verified
+    // when it was downloaded) saves the manifest round trip on every launch.
+    let saved = tokio::fs::read(paths.version_json(&profile.game_version)).await.ok();
+    let vanilla: VersionJson = match saved.and_then(|bytes| serde_json::from_slice(&bytes).ok()) {
+        Some(version) => version,
+        None => {
+            let manifest = mojang::manifest(http, paths).await?;
+            let entry = manifest
+                .versions
+                .iter()
+                .find(|version| version.id == profile.game_version)
+                .ok_or_else(|| Error::other(format!("unknown Minecraft version {}", profile.game_version)))?;
+            http.json_cached(&entry.url, &paths.version_json(&entry.id), Some(&entry.sha1)).await?
+        }
+    };
 
     match profile.loader {
         Loader::Vanilla => Ok(vanilla),

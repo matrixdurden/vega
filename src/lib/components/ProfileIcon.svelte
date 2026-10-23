@@ -1,28 +1,42 @@
 <script lang="ts">
-  import { profileIcon } from "../profileIcons";
-  import Icon from "./Icon.svelte";
+  import { pixelRuns } from "../pixelIcons";
 
-  let { icon, size = 36 }: { icon: string; size?: number } = $props();
+  // `icon` is a built-in pixel icon key or an uploaded data: URL.
+  let { icon, size = 40 }: { icon: string; size?: number } = $props();
 
-  const look = $derived(profileIcon(icon));
+  const uploaded = $derived(icon.startsWith("data:image/"));
+  const runs = $derived(uploaded ? [] : pixelRuns(icon));
 </script>
 
-<span
-  class="tile"
-  style:width="{size}px"
-  style:height="{size}px"
-  style:border-radius="{Math.round(size * 0.28)}px"
-  style:background={look.bg}
-  style:color={look.fg}
->
-  <Icon name={look.icon} size={Math.round(size * 0.52)} />
+<span class="slot" style:width="{size}px" style:height="{size}px">
+  {#if uploaded}
+    <img src={icon} alt="" />
+  {:else}
+    <svg viewBox="0 0 16 16" width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} shape-rendering="crispEdges" aria-hidden="true">
+      {#each runs as run, i (i)}
+        <rect x={run.x} y={run.y} width={run.w} height="1" fill={run.fill} />
+      {/each}
+    </svg>
+  {/if}
 </span>
 
 <style>
-  .tile {
+  /* An inventory slot: dark, square, with a bevelled edge. */
+  .slot {
     display: grid;
     place-items: center;
     flex-shrink: 0;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
+    overflow: hidden;
+    border-radius: 4px;
+    background: #1d1b31;
+    box-shadow:
+      inset 2px 2px 0 rgb(0 0 0 / 0.35),
+      inset -2px -2px 0 rgb(255 255 255 / 0.06);
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 </style>
