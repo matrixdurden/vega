@@ -3,17 +3,26 @@
   import { t } from "../i18n.svelte";
   import Icon from "./Icon.svelte";
 
-  let { title, width = 520, onclose, children }: { title: string; width?: number; onclose: () => void; children: Snippet } = $props();
+  // `bare` leaves the whole box to the content: no padding and no title row.
+  let {
+    title,
+    width = 520,
+    bare = false,
+    onclose,
+    children,
+  }: { title: string; width?: number; bare?: boolean; onclose: () => void; children: Snippet } = $props();
 </script>
 
 <svelte:window onkeydown={(e) => e.key === "Escape" && onclose()} />
 
 <div class="backdrop" role="presentation" onclick={(e) => e.target === e.currentTarget && onclose()}>
-  <div class="modal" role="dialog" aria-modal="true" aria-label={title} style:width="min({width}px, calc(100vw - 32px))">
-    <div class="head">
-      <h2>{title}</h2>
-      <button class="close" aria-label={t("window.close")} onclick={onclose}><Icon name="x" /></button>
-    </div>
+  <div class="modal" class:bare role="dialog" aria-modal="true" aria-label={title} style:width="min({width}px, calc(100vw - 32px))">
+    {#if !bare}
+      <div class="head">
+        <h2>{title}</h2>
+        <button class="close" aria-label={t("window.close")} onclick={onclose}><Icon name="x" /></button>
+      </div>
+    {/if}
     {@render children()}
   </div>
 </div>
@@ -47,6 +56,12 @@
     border: 1px solid var(--border-strong);
     box-shadow: 0 24px 60px rgb(0 0 0 / 0.5);
     animation: rise 0.18s var(--ease);
+  }
+
+  .modal.bare {
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
   }
 
   @keyframes rise {

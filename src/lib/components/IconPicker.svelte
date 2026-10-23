@@ -5,7 +5,7 @@
   import Icon from "./Icon.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
 
-  let { value, onchange }: { value: string; onchange: (icon: string) => void } = $props();
+  let { value, onchange, size = 40 }: { value: string; onchange: (icon: string) => void; size?: number } = $props();
 
   const SIZE = 96;
   let input = $state<HTMLInputElement>();
@@ -31,15 +31,15 @@
   }
 </script>
 
-<div class="grid" role="radiogroup" aria-label={t("form.icon")}>
+<div class="grid" role="radiogroup" aria-label={t("form.icon")} style:--tile="{size + 6}px">
   {#each pixelIconKeys as key (key)}
     <button type="button" role="radio" aria-checked={value === key} aria-label={key} class:on={value === key} onclick={() => onchange(key)}>
-      <ProfileIcon icon={key} size={40} />
+      <ProfileIcon icon={key} {size} />
     </button>
   {/each}
   {#if uploaded}
     <button type="button" role="radio" aria-checked="true" aria-label={t("form.upload")} class="on">
-      <ProfileIcon icon={value} size={40} />
+      <ProfileIcon icon={value} {size} />
     </button>
   {/if}
   <button type="button" class="upload" title={t("form.upload")} aria-label={t("form.upload")} onclick={() => input?.click()}>
@@ -56,8 +56,8 @@
   }
 
   button {
-    width: 46px;
-    height: 46px;
+    width: var(--tile);
+    height: var(--tile);
     display: grid;
     place-items: center;
     border-radius: 6px;
