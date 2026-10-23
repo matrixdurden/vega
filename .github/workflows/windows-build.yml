@@ -1,9 +1,13 @@
 name: Windows build
 
-# A Windows installer for trying a change, without making a release.
-# Run it with `gh workflow run windows-build.yml` and grab the artifact.
+# A Windows installer for trying a change, without making a release. The
+# installer replaces the one on a private "Vega dev build" draft release,
+# which only people with write access can see.
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -22,8 +26,21 @@ jobs:
       - run: npx tauri build --bundles nsis
         env:
           VEGA_MSA_CLIENT_ID: ${{ secrets.VEGA_MSA_CLIENT_ID }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vega-windows
-          path: target/release/bundle/nsis/*.exe
-          retention-days: 7
+      - name: Upload to the private dev draft
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          id=$(gh api "repos/$REPO/releases" --jq '[.[] | select(.draft and .name == "Vega dev build")][0].id // empty')
+          if [ -z "$id" ]; then
+            id=$(gh api -X POST "repos/$REPO/releases" -f tag_name=dev-build -f name="Vega dev build" \
+              -F draft=true -f body="Private test build from the latest main. Not a release." --jq .id)
+          fi
+          for asset in $(gh api "repos/$REPO/releases/$id/assets" --jq '.[].id'); do
+            gh api -X DELETE "repos/$REPO/releases/assets/$asset"
+          done
+          file=$(ls target/release/bundle/nsis/*.exe | head -1)
+          curl -sSf -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/octet-stream" \
+            --data-binary @"$file" "https://uploads.github.com/repos/$REPO/releases/$id/assets?name=Vega-dev-setup.exe" > /dev/null
+          echo "Uploaded $file to draft $id"
