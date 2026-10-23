@@ -32,7 +32,8 @@ Vega is a Minecraft launcher that gets out of your way. Pick a version, add a fe
 ## Features
 
 - **Profiles front and centre.** Every profile sits in the sidebar with a pixel-art icon (or your own picture), its Minecraft version and its mods.
-- **Any client, your way.** Drop a client or mod `.jar` onto a profile, or start a new profile from one. [Meteor Client](https://meteorclient.com) also installs in one click.
+- **Any client, your way.** Drop a client or mod `.jar` onto a profile, or start a new profile from one.
+- **Several games at once.** Run different profiles side by side, each with its own progress, stop button and log.
 - **Modrinth modpacks.** Search and install Fabric modpacks from Modrinth, or import a `.mrpack` file, with their mods, configs and the exact Fabric version they ask for.
 - **Accounts.** Offline names and Microsoft sign-in (device code), with several accounts side by side.
 - **Mods you can switch off.** Turn a mod off without deleting it, or remove it for good. Required dependencies such as Fabric API come along automatically.
@@ -61,7 +62,8 @@ Microsoft sign-in needs the id of an Azure app with "Allow public client flows" 
 - [x] Automatic Java runtimes
 - [x] Game console and crash notice
 - [x] Offline and Microsoft accounts
-- [x] Ready-made clients and Modrinth modpacks (`.mrpack`)
+- [x] Clients from `.jar` files and Modrinth modpacks (`.mrpack`)
+- [x] Several games at once
 - [ ] NeoForge and Quilt
 - [ ] Crash analyser that explains what went wrong
 - [ ] Profile snapshots and one-click rollback

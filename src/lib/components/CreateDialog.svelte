@@ -1,28 +1,26 @@
 <script lang="ts">
-  import { api, on, type ClientInfo, type Loader, type Profile, type Project } from "../api";
+  import { api, on, type Loader, type Profile, type Project } from "../api";
   import { compactNumber, t } from "../i18n.svelte";
   import { pixelIconKeys } from "../pixelIcons";
   import { addProfile, app, attempt, loadVersions } from "../state.svelte";
   import Icon from "./Icon.svelte";
+  import IconPicker from "./IconPicker.svelte";
   import ModIcon from "./ModIcon.svelte";
   import Modal from "./Modal.svelte";
-  import ProfileFields from "./ProfileFields.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
 
-  type Mode = "blank" | "modpack" | "file";
-  const CLIENT_ICONS: Record<string, string> = { meteor: "sword", "fabulously-optimized": "diamond" };
-
-  let mode = $state<Mode>("blank");
+  let view = $state<"form" | "modrinth">("form");
   let busy = $state(false);
   let progress = $state(0);
 
-  // Blank profile, also used for "profile from a jar"
-  let icon = $state(pixelIconKeys[app.profiles.length % pixelIconKeys.length]);
+  let icon = $state<string>(pixelIconKeys[app.profiles.length % pixelIconKeys.length]);
+  let picking = $state(false);
   let name = $state("");
   let loader = $state<Loader>("fabric");
   let version = $state("");
+  let jars = $state<File[]>([]);
+  let fileInput = $state<HTMLInputElement>();
 
-  // Modpack search
   let query = $state("");
   let packs = $state<Project[]>([]);
   let searching = $state(false);
@@ -30,12 +28,16 @@
   let packVersions = $state<string[]>([]);
   let packVersion = $state("");
 
-  // From file
-  let jars = $state<File[]>([]);
-  let jarVersion = $state("");
-  let clients = $state<ClientInfo[]>([]);
-  let jarInput = $state<HTMLInputElement>();
-  let packInput = $state<HTMLInputElement>();
+  const choices = $derived(app.versions.filter((v) => loader === "vanilla" || v.fabric));
+  const placeholder = $derived(jars[0]?.name.replace(/\.jar$/i, "") ?? `${loader === "fabric" ? "Fabric" : "Vanilla"} ${version}`);
+
+  $effect(() => {
+    loadVersions();
+  });
+
+  $effect(() => {
+    if (choices.length && !choices.some((v) => v.id === version)) version = choices[0].id;
+  });
 
   $effect(() => {
     const off = on("install-progress", (e) => (progress = e.total ? Math.round((e.done / e.total) * 100) : 0));
@@ -43,7 +45,7 @@
   });
 
   $effect(() => {
-    if (mode !== "modpack") return;
+    if (view !== "modrinth") return;
     const q = query;
     searching = true;
     const timer = setTimeout(async () => {
@@ -55,26 +57,6 @@
     }, q ? 300 : 0);
     return () => clearTimeout(timer);
   });
-
-  $effect(() => {
-    if (mode !== "file") return;
-    loadVersions();
-    if (!clients.length) attempt(() => api.listClients()).then((list) => (clients = list ?? []));
-  });
-
-  $effect(() => {
-    if (!jarVersion) jarVersion = app.versions.find((v) => v.fabric)?.id ?? "";
-  });
-
-  async function pickPack(p: Project) {
-    pack = p;
-    packVersions = [];
-    packVersion = "";
-    packVersions = (await attempt(() => api.modpackVersions(p.slug))) ?? [];
-    packVersion = packVersions[0] ?? "";
-  }
-
-  const close = () => !busy && (app.createOpen = false);
 
   async function run(action: () => Promise<Profile>) {
     if (busy) return;
@@ -88,146 +70,206 @@
     }
   }
 
-  const createBlank = () =>
-    run(() => api.createProfile({ name: name.trim() || `${loader === "fabric" ? "Fabric" : "Vanilla"} ${version}`, icon, gameVersion: version, loader, memoryMb: null }));
-
-  const installPack = () => pack && run(() => api.createModpackProfile(pack!.slug, packVersion, pack!.title, "chest"));
-
-  async function importPack(file: File | undefined) {
-    if (file) await run(() => api.importModpack(file, "chest"));
-    if (packInput) packInput.value = "";
+  // A .mrpack becomes its own profile; jars ride along with the form.
+  function pickFiles(files: FileList | null) {
+    const list = [...(files ?? [])];
+    const pack = list.find((f) => f.name.toLowerCase().endsWith(".mrpack"));
+    if (pack) run(() => api.importModpack(pack, "chest"));
+    else if (list.length) {
+      jars = [...jars, ...list.filter((f) => f.name.toLowerCase().endsWith(".jar"))];
+      loader = "fabric";
+    }
+    if (fileInput) fileInput.value = "";
   }
 
-  // A Fabric profile named after the first jar, with every picked jar added.
-  const createFromJars = () =>
+  const create = () =>
     run(async () => {
-      const profile = await api.createProfile({
-        name: name.trim() || jars[0].name.replace(/\.jar$/i, ""),
-        icon,
-        gameVersion: jarVersion,
-        loader: "fabric",
-        memoryMb: null,
-      });
+      const profile = await api.createProfile({ name: name.trim() || placeholder, icon, gameVersion: version, loader, memoryMb: null });
       for (const jar of jars) await api.addModFile(profile.id, jar);
       return profile;
     });
+
+  async function pickPack(p: Project) {
+    pack = p;
+    packVersions = (await attempt(() => api.modpackVersions(p.slug))) ?? [];
+    packVersion = packVersions[0] ?? "";
+  }
+
+  const close = () => !busy && (app.createOpen = false);
 </script>
 
-<Modal title={t("create.title")} width={600} onclose={close}>
-  <div class="segmented">
-    <button class:on={mode === "blank"} onclick={() => (mode = "blank")} disabled={busy}>{t("create.blank")}</button>
-    <button class:on={mode === "modpack"} onclick={() => (mode = "modpack")} disabled={busy}>{t("create.modpack")}</button>
-    <button class:on={mode === "file"} onclick={() => (mode = "file")} disabled={busy}>{t("create.file")}</button>
-  </div>
+<Modal title={t("create.title")} width={560} onclose={close}>
+  {#if view === "form"}
+    <div class="line">
+      <button class="icon" aria-label={t("form.icon")} aria-expanded={picking} onclick={() => (picking = !picking)}>
+        <ProfileIcon {icon} size={46} />
+      </button>
+      <!-- svelte-ignore a11y_autofocus -->
+      <input class="input name" bind:value={name} {placeholder} maxlength="40" aria-label={t("form.name")} autofocus />
+    </div>
+    {#if picking}<IconPicker value={icon} onchange={(value) => ((icon = value), (picking = false))} />{/if}
 
-  {#if mode === "blank"}
-    <ProfileFields bind:icon bind:name bind:loader bind:version placeholder={`${loader === "fabric" ? "Fabric" : "Vanilla"} ${version}`} />
-    <div class="actions">
-      <button class="btn" onclick={close}>{t("create.cancel")}</button>
-      <button class="btn green" onclick={createBlank} disabled={busy || !version}>
+    <div class="line">
+      <div class="segmented">
+        <button class:on={loader === "fabric"} onclick={() => (loader = "fabric")}>Fabric</button>
+        <button class:on={loader === "vanilla"} onclick={() => (loader = "vanilla")} disabled={jars.length > 0}>Vanilla</button>
+      </div>
+      <select class="input" bind:value={version} aria-label={t("form.version")} disabled={!choices.length}>
+        {#each choices as choice (choice.id)}<option value={choice.id}>{choice.id}</option>{/each}
+      </select>
+    </div>
+
+    {#if jars.length}
+      <div class="files">
+        {#each jars as jar, i (jar.name + i)}
+          <span class="file">{jar.name}<button aria-label={t("mods.remove")} onclick={() => (jars = jars.filter((_, j) => j !== i))}><Icon name="x" size={13} /></button></span>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="footer">
+      <button class="btn" onclick={() => fileInput?.click()} disabled={busy}><Icon name="upload" size={15} />{t("create.fromFile")}</button>
+      <button class="btn" onclick={() => (view = "modrinth")} disabled={busy}><Icon name="search" size={15} />{t("create.modrinth")}</button>
+      <span class="grow">{#if busy}<span class="bar"><span style:width="{progress}%"></span></span>{/if}</span>
+      <button class="btn green" onclick={create} disabled={busy || !version}>
         {#if busy}<Icon name="loader" size={15} class="spin" />{/if}{t("create.button")}
       </button>
     </div>
-  {:else if mode === "modpack"}
-    <label class="search">
-      <Icon name={searching ? "loader" : "search"} size={17} class={searching ? "spin" : ""} />
-      <input class="input" bind:value={query} placeholder={t("create.searchModpacks")} spellcheck="false" />
-    </label>
+    <input bind:this={fileInput} type="file" accept=".jar,.mrpack" multiple hidden onchange={(e) => pickFiles(e.currentTarget.files)} />
+  {:else}
+    <div class="line">
+      <button class="btn back" aria-label={t("create.back")} onclick={() => (view = "form")} disabled={busy}><Icon name="arrow" size={16} /></button>
+      <label class="search">
+        <Icon name={searching ? "loader" : "search"} size={16} class={searching ? "spin" : ""} />
+        <!-- svelte-ignore a11y_autofocus -->
+        <input class="input" bind:value={query} placeholder={t("create.searchModpacks")} spellcheck="false" autofocus />
+      </label>
+    </div>
     <div class="packs">
       {#each packs as p (p.projectId)}
         <button class="pack" class:on={pack?.projectId === p.projectId} onclick={() => pickPack(p)} disabled={busy}>
-          <ModIcon url={p.iconUrl} title={p.title} size={40} />
-          <span class="text">
-            <b class="mc">{p.title}</b>
-            <span class="hint clamp">{p.description}</span>
-          </span>
-          <span class="hint nowrap"><Icon name="download" size={13} /> {compactNumber(p.downloads)}</span>
+          <ModIcon url={p.iconUrl} title={p.title} size={38} />
+          <span class="text"><b class="mc">{p.title}</b><span class="hint">{p.description}</span></span>
+          <span class="hint downloads"><Icon name="download" size={13} />{compactNumber(p.downloads)}</span>
         </button>
-      {:else}
-        {#if !searching}<p class="hint empty">{t("create.noResults")}</p>{/if}
       {/each}
     </div>
-    {#if pack}
-      <div class="bottom">
-        <select class="input version" bind:value={packVersion} disabled={busy || !packVersions.length} aria-label={t("form.version")}>
-          {#if !packVersions.length}<option value="">{t("create.pickVersion")}</option>{/if}
-          {#each packVersions as v (v)}<option value={v}>{v}</option>{/each}
-        </select>
-        {#if busy}<div class="bar"><div style:width="{progress}%"></div></div>{:else}<span class="grow"></span>{/if}
-        <button class="btn green" onclick={installPack} disabled={busy || !packVersion}>
-          {#if busy}<Icon name="loader" size={15} class="spin" />{/if}{busy ? t("create.installing") : t("create.install")}
-        </button>
-      </div>
-    {/if}
-  {:else}
-    <section class="card">
-      <h3>{t("create.jar")}</h3>
-      <p class="hint">{t("create.jarHint")}</p>
-      <div class="bottom">
-        <button class="btn" onclick={() => jarInput?.click()} disabled={busy}><Icon name="upload" size={15} />{t("create.pickJar")}</button>
-        <span class="hint grow">{jars.length ? (jars.length === 1 ? jars[0].name : t("create.files", { n: jars.length })) : ""}</span>
-        <select class="input version" bind:value={jarVersion} aria-label={t("form.version")} disabled={busy}>
-          {#each app.versions.filter((v) => v.fabric) as v (v.id)}<option value={v.id}>{v.id}</option>{/each}
-        </select>
-        <button class="btn green" onclick={createFromJars} disabled={busy || !jars.length || !jarVersion}>{t("create.button")}</button>
-      </div>
-      <input bind:this={jarInput} type="file" accept=".jar" multiple hidden onchange={(e) => (jars = [...(e.currentTarget.files ?? [])])} />
-    </section>
-
-    <section class="card">
-      <h3>{t("create.mrpack")}</h3>
-      <p class="hint">{t("create.mrpackHint")}</p>
-      <div class="bottom">
-        <button class="btn" onclick={() => packInput?.click()} disabled={busy}><Icon name="upload" size={15} />{t("create.pickPack")}</button>
-        {#if busy}<div class="bar"><div style:width="{progress}%"></div></div>{/if}
-      </div>
-      <input bind:this={packInput} type="file" accept=".mrpack,.zip" hidden onchange={(e) => importPack(e.currentTarget.files?.[0])} />
-    </section>
-
-    {#if clients.length}
-      <section class="card">
-        <h3>{t("create.quick")}</h3>
-        {#each clients as c (c.id)}
-          <div class="client">
-            <ProfileIcon icon={CLIENT_ICONS[c.id] ?? "sword"} size={34} />
-            <span class="text">
-              <b class="mc">{c.name}</b>
-              {#if c.kind === "utility"}<span class="warn">{t("create.utilityWarning")}</span>{/if}
-            </span>
-            <button
-              class="btn"
-              disabled={busy || !c.versions.length}
-              onclick={() => run(() => api.createClientProfile(c.id, c.versions[0], CLIENT_ICONS[c.id] ?? "sword"))}
-            >
-              {t("create.install")} · {c.versions[0] ?? "-"}
-            </button>
-          </div>
-        {/each}
-      </section>
-    {/if}
+    <div class="footer">
+      <select class="input" bind:value={packVersion} disabled={busy || !pack} aria-label={t("form.version")}>
+        {#if !packVersions.length}<option value="">{t("form.version")}</option>{/if}
+        {#each packVersions as v (v)}<option value={v}>{v}</option>{/each}
+      </select>
+      <span class="grow">{#if busy}<span class="bar"><span style:width="{progress}%"></span></span>{/if}</span>
+      <button class="btn green" disabled={busy || !pack || !packVersion} onclick={() => pack && run(() => api.createModpackProfile(pack!.slug, packVersion, pack!.title, "chest"))}>
+        {#if busy}<Icon name="loader" size={15} class="spin" />{/if}{t("create.install")}
+      </button>
+    </div>
   {/if}
 </Modal>
 
 <style>
-  .actions,
-  .bottom {
+  .line,
+  .footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
     gap: 8px;
+  }
+
+  .line .segmented {
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .line select,
+  .footer select {
+    flex: 1;
+  }
+
+  .footer select {
+    flex: 0 0 140px;
+    height: 36px;
+  }
+
+  .icon {
+    border-radius: 6px;
+    border: 2px solid transparent;
+  }
+
+  .icon:hover,
+  .icon[aria-expanded="true"] {
+    border-color: var(--green-text);
+  }
+
+  .name {
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .file {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 4px 0 10px;
+    border-radius: 4px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+
+  .file button {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    color: var(--text-3);
+  }
+
+  .file button:hover {
+    color: var(--danger);
+  }
+
+  .footer {
+    padding-top: 4px;
   }
 
   .grow {
     flex: 1;
     min-width: 0;
+  }
+
+  .bar {
+    display: block;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--bg);
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+
+  .bar span {
+    display: block;
+    height: 100%;
+    background: var(--green);
+    transition: width 0.2s;
+  }
+
+  .back {
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    flex-shrink: 0;
   }
 
   .search {
     position: relative;
-    display: block;
+    flex: 1;
     color: var(--text-3);
   }
 
@@ -239,11 +281,11 @@
   }
 
   .search .input {
-    padding-left: 38px;
+    padding-left: 36px;
   }
 
   .packs {
-    height: 280px;
+    height: 300px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -267,7 +309,6 @@
 
   .pack.on {
     border-color: var(--green-text);
-    background: var(--select);
   }
 
   .text {
@@ -275,72 +316,22 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
   }
 
   .text b {
     font-size: 13.5px;
   }
 
-  .clamp {
+  .text .hint {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .nowrap {
+  .downloads {
     display: flex;
     align-items: center;
     gap: 4px;
     white-space: nowrap;
-  }
-
-  .empty {
-    padding: 30px;
-    text-align: center;
-  }
-
-  .version {
-    width: 130px;
-    height: 36px;
-  }
-
-  .bar {
-    flex: 1;
-    height: 8px;
-    border-radius: 2px;
-    background: var(--bg);
-    overflow: hidden;
-  }
-
-  .bar div {
-    height: 100%;
-    background: var(--green);
-    transition: width 0.2s;
-  }
-
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 14px;
-    border-radius: 4px;
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-  }
-
-  h3 {
-    font-size: 14px;
-  }
-
-  .client {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .warn {
-    font-size: 12px;
-    color: var(--warning);
   }
 </style>

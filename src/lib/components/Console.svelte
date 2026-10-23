@@ -3,11 +3,15 @@
   import { app } from "../state.svelte";
   import Icon from "./Icon.svelte";
 
+  let { profileId }: { profileId: string } = $props();
+
   let list = $state<HTMLDivElement>();
+  const logs = $derived(app.logs[profileId] ?? []);
+  const name = $derived(app.profiles.find((p) => p.id === profileId)?.name ?? "");
 
   // Follow new lines unless the player scrolled up to read something.
   $effect.pre(() => {
-    void app.logs.length;
+    void logs.length;
     if (!list) return;
     const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     if (atBottom) queueMicrotask(() => list && (list.scrollTop = list.scrollHeight));
@@ -16,11 +20,11 @@
 
 <section class="console">
   <div class="head">
-    <span><Icon name="terminal" size={16} /> {t("profile.console")}</span>
-    <button aria-label={t("window.close")} onclick={() => (app.consoleOpen = false)}><Icon name="x" size={16} /></button>
+    <span class="mc"><Icon name="terminal" size={16} /> {t("profile.console")} · {name}</span>
+    <button aria-label={t("window.close")} onclick={() => (app.console = null)}><Icon name="x" size={16} /></button>
   </div>
   <div class="lines" bind:this={list}>
-    {#each app.logs as entry, i (i)}
+    {#each logs as entry, i (i)}
       <div class:error={entry.error || /\b(ERROR|FATAL|Exception)\b/.test(entry.line)}>{entry.line}</div>
     {/each}
   </div>
@@ -31,14 +35,14 @@
     position: absolute;
     right: 24px;
     bottom: 24px;
-    width: min(620px, calc(100% - 48px));
-    height: 260px;
+    width: min(760px, calc(100% - 48px));
+    height: min(320px, 50%);
     display: flex;
     flex-direction: column;
     border-radius: var(--radius);
-    background: rgb(10 9 24 / 0.92);
+    background: #111114;
     border: 1px solid var(--border-strong);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
     z-index: 15;
     animation: rise 0.2s var(--ease);
   }

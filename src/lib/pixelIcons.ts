@@ -241,12 +241,13 @@ export type PixelIconKey = keyof typeof pixelIcons;
 
 export const pixelIconKeys = Object.keys(pixelIcons) as PixelIconKey[];
 
-/** Horizontal runs of one colour, so an icon is a few dozen rects, not 256. */
-export function pixelRuns(key: string): { x: number; y: number; w: number; fill: string }[] {
+type Run = { x: number; y: number; w: number; fill: string };
+
+/** Horizontal runs of one colour, so an icon is a few dozen rects, not 256.
+ *  The drawn pixels are centred in the 16x16 grid, whatever the rows say. */
+export function pixelRuns(key: string): Run[] {
   const icon: PixelIcon = pixelIcons[key as PixelIconKey] ?? pixelIcons.grass;
-  // Short icons sit in the middle of the 16x16 grid.
-  const top = Math.floor((16 - icon.rows.length) / 2);
-  const runs: { x: number; y: number; w: number; fill: string }[] = [];
+  const runs: Run[] = [];
   icon.rows.forEach((row, y) => {
     let x = 0;
     while (x < row.length) {
@@ -254,11 +255,18 @@ export function pixelRuns(key: string): { x: number; y: number; w: number; fill:
       let end = x + 1;
       while (end < row.length && row[end] === char) end++;
       const fill = icon.palette[char];
-      if (fill) runs.push({ x, y: y + top, w: end - x, fill });
+      if (fill) runs.push({ x, y, w: end - x, fill });
       x = end;
     }
   });
-  return runs;
+  if (!runs.length) return runs;
+  const left = Math.min(...runs.map((r) => r.x));
+  const right = Math.max(...runs.map((r) => r.x + r.w));
+  const top = Math.min(...runs.map((r) => r.y));
+  const bottom = Math.max(...runs.map((r) => r.y + 1));
+  const dx = Math.floor((16 - (right - left)) / 2) - left;
+  const dy = Math.floor((16 - (bottom - top)) / 2) - top;
+  return runs.map((r) => ({ ...r, x: r.x + dx, y: r.y + dy }));
 }
 
 const urls = new Map<string, string>();

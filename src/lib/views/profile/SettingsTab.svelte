@@ -1,44 +1,39 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { api, toDraft, type Loader, type Profile, type ProfileFolder } from "../../api";
+  import { api, toDraft, type Profile, type ProfileDraft } from "../../api";
   import Icon from "../../components/Icon.svelte";
+  import IconPicker from "../../components/IconPicker.svelte";
   import MemorySlider from "../../components/MemorySlider.svelte";
-  import ProfileFields from "../../components/ProfileFields.svelte";
   import { t } from "../../i18n.svelte";
-  import { app, attempt, deleteProfile, toast, updateProfile } from "../../state.svelte";
+  import { app, attempt, deleteProfile, loadVersions, updateProfile } from "../../state.svelte";
 
   let { profile }: { profile: Profile } = $props();
 
-  const FOLDERS: ProfileFolder[] = ["mods", "resourcepacks", "shaderpacks", "screenshots", "saves"];
-
-  // The form edits a copy; Profile view re-creates this tab per profile.
-  const initial = untrack(() => toDraft(profile));
-  let icon = $state(initial.icon);
-  let name = $state(initial.name);
-  let loader = $state<Loader>(initial.loader);
-  let version = $state(initial.gameVersion);
-  let saving = $state(false);
+  // Every change saves itself; the form keeps its own copy while typing.
+  let draft = $state<ProfileDraft>(untrack(() => toDraft(profile)));
   let confirmDelete = $state(false);
 
+  const choices = $derived(app.versions.filter((v) => draft.loader === "vanilla" || v.fabric));
   const globalMb = $derived(app.settings?.memoryMb ?? 4096);
-  const dirty = $derived(icon !== profile.icon || name.trim() !== profile.name || loader !== profile.loader || version !== profile.gameVersion);
-  const versionChanged = $derived(version !== profile.gameVersion || loader !== profile.loader);
 
-  async function save() {
-    saving = true;
-    const ok = await attempt(() => updateProfile(profile.id, { ...toDraft(profile), icon, name, loader, gameVersion: version }));
-    saving = false;
-    if (ok !== undefined) toast(t("form.saved"));
+  $effect(() => {
+    loadVersions();
+  });
+
+  let timer: ReturnType<typeof setTimeout>;
+  function save(patch: Partial<ProfileDraft>, delay = 0) {
+    Object.assign(draft, patch);
+    clearTimeout(timer);
+    const snapshot = $state.snapshot(draft);
+    timer = setTimeout(() => attempt(() => updateProfile(profile.id, snapshot)), delay);
   }
 
-  let memoryTimer: ReturnType<typeof setTimeout>;
-  function setMemory(memoryMb: number | null) {
-    const target = app.profiles.find((p) => p.id === profile.id);
-    if (!target) return;
-    target.memoryMb = memoryMb;
-    clearTimeout(memoryTimer);
-    const draft = toDraft(target);
-    memoryTimer = setTimeout(() => attempt(() => updateProfile(target.id, draft)), 400);
+  function setLoader(loader: ProfileDraft["loader"]) {
+    // Vanilla lists every release; Fabric only the ones it supports.
+    const version = loader === "fabric" && !app.versions.find((v) => v.id === draft.gameVersion)?.fabric
+      ? (app.versions.find((v) => v.fabric)?.id ?? draft.gameVersion)
+      : draft.gameVersion;
+    save({ loader, gameVersion: version });
   }
 
   function remove() {
@@ -51,103 +46,97 @@
   }
 </script>
 
-<div class="stack">
-  <section class="card">
-    <h3>{t("psettings.profile")}</h3>
-    <ProfileFields bind:icon bind:name bind:loader bind:version />
-    <div class="save">
-      {#if versionChanged && app.mods.length}<span class="warn"><Icon name="alert" size={14} />{t("form.modsWarning")}</span>{/if}
-      <button class="btn green" disabled={!dirty || saving} onclick={save}>
-        {#if saving}<Icon name="loader" size={15} class="spin" />{/if}{t("form.save")}
-      </button>
-    </div>
-  </section>
+<div class="settings">
+  <div class="row">
+    <span class="label">{t("form.name")}</span>
+    <input class="input" value={draft.name} maxlength="40" oninput={(e) => save({ name: e.currentTarget.value }, 500)} />
+  </div>
 
-  <section class="card">
-    <h3>{t("psettings.memory")}</h3>
-    <div class="line">
+  <div class="row top">
+    <span class="label">{t("form.icon")}</span>
+    <IconPicker value={draft.icon} onchange={(icon) => save({ icon })} />
+  </div>
+
+  <div class="row">
+    <span class="label">{t("form.version")}</span>
+    <div class="pair">
+      <div class="segmented">
+        <button class:on={draft.loader === "fabric"} onclick={() => setLoader("fabric")}>Fabric</button>
+        <button class:on={draft.loader === "vanilla"} onclick={() => setLoader("vanilla")}>Vanilla</button>
+      </div>
+      <select class="input" value={draft.gameVersion} onchange={(e) => save({ gameVersion: e.currentTarget.value })}>
+        {#if !choices.some((v) => v.id === draft.gameVersion)}<option value={draft.gameVersion}>{draft.gameVersion}</option>{/if}
+        {#each choices as choice (choice.id)}<option value={choice.id}>{choice.id}</option>{/each}
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="label">{t("psettings.memory")}</span>
+    <div class="pair">
       <label class="check">
-        <input type="checkbox" checked={profile.memoryMb === null} onchange={(e) => setMemory(e.currentTarget.checked ? null : globalMb)} />
+        <input type="checkbox" checked={draft.memoryMb === null} onchange={(e) => save({ memoryMb: e.currentTarget.checked ? null : globalMb })} />
         {t("psettings.memoryDefault", { gb: globalMb / 1024 })}
       </label>
-      {#if profile.memoryMb !== null}<MemorySlider value={profile.memoryMb} onchange={setMemory} />{/if}
+      {#if draft.memoryMb !== null}<MemorySlider value={draft.memoryMb} onchange={(memoryMb) => save({ memoryMb }, 400)} />{/if}
     </div>
-  </section>
+  </div>
 
-  <section class="card">
-    <h3>{t("psettings.folders")}</h3>
-    <div class="folders">
-      <button class="btn" onclick={() => attempt(() => api.openProfileFolder(profile.id))}><Icon name="folder" size={15} />{t("psettings.openFolder")}</button>
-      {#each FOLDERS as folder (folder)}
-        <button class="btn" onclick={() => attempt(() => api.openProfileFolder(profile.id, folder))}>{folder}</button>
-      {/each}
-    </div>
-  </section>
-
-  <section class="card line">
-    <div>
-      <h3 class="danger">{t("psettings.delete")}</h3>
-      <p class="hint">{t("psettings.deleteHint")}</p>
-    </div>
-    <button class="btn danger" onclick={remove}>
-      <Icon name="trash" size={15} />{confirmDelete ? t("psettings.confirmDelete") : t("psettings.delete")}
-    </button>
-  </section>
+  <div class="row actions">
+    <button class="btn" onclick={() => attempt(() => api.openProfileFolder(profile.id))}><Icon name="folder" size={15} />{t("psettings.openFolder")}</button>
+    <button class="btn danger" onclick={remove}><Icon name="trash" size={15} />{confirmDelete ? t("psettings.confirmDelete") : t("psettings.delete")}</button>
+  </div>
 </div>
 
 <style>
-  .stack {
-    max-width: 720px;
+  .settings {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-  }
-
-  .card {
-    padding: 16px;
-    border-radius: 8px;
+    border-radius: 6px;
     background: var(--panel);
     border: 1px solid var(--border);
   }
 
-  h3 {
-    margin-bottom: 12px;
-    font-family: var(--mc);
-    font-size: 15px;
-  }
-
-  h3.danger {
-    margin-bottom: 2px;
-    color: var(--danger);
-  }
-
-  .hint {
-    font-size: 12px;
-    color: var(--text-3);
-  }
-
-  .save {
-    display: flex;
+  .row {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
     align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 14px;
-  }
-
-  .warn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--warning);
-  }
-
-  .line {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 16px;
+    padding: 14px 18px;
+  }
+
+  .row + .row {
+    border-top: 1px solid var(--border);
+  }
+
+  .row.top {
+    align-items: start;
+  }
+
+  .row.top .label {
+    padding-top: 12px;
+  }
+
+  .label {
+    font-family: var(--mc);
+    font-weight: 400;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .pair {
+    display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .pair .segmented {
+    width: 220px;
+  }
+
+  .pair select {
+    width: 160px;
   }
 
   .check {
@@ -165,14 +154,8 @@
     accent-color: var(--green);
   }
 
-  .folders {
+  .actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .folders .btn {
-    height: 32px;
-    font-size: 12.5px;
+    justify-content: space-between;
   }
 </style>

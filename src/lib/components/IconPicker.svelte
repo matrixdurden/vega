@@ -5,10 +5,10 @@
   import Icon from "./Icon.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
 
-  let { value = $bindable() }: { value: string } = $props();
+  let { value, onchange }: { value: string; onchange: (icon: string) => void } = $props();
 
   const SIZE = 96;
-  let input: HTMLInputElement;
+  let input = $state<HTMLInputElement>();
   const uploaded = $derived(value.startsWith("data:image/"));
 
   // Squares and shrinks the picture so profiles.json stays small.
@@ -23,41 +23,41 @@
       // Keep pixel art crisp when it is scaled up.
       ctx.imageSmoothingEnabled = side > SIZE;
       ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
-      value = canvas.toDataURL("image/png");
+      onchange(canvas.toDataURL("image/png"));
     } catch {
       toast(t("form.uploadFailed"), "error");
     }
-    input.value = "";
+    if (input) input.value = "";
   }
 </script>
 
 <div class="grid" role="radiogroup" aria-label={t("form.icon")}>
   {#each pixelIconKeys as key (key)}
-    <button type="button" role="radio" aria-checked={value === key} aria-label={key} class:on={value === key} onclick={() => (value = key)}>
-      <ProfileIcon icon={key} size={42} />
+    <button type="button" role="radio" aria-checked={value === key} aria-label={key} class:on={value === key} onclick={() => onchange(key)}>
+      <ProfileIcon icon={key} size={40} />
     </button>
   {/each}
   {#if uploaded}
     <button type="button" role="radio" aria-checked="true" aria-label={t("form.upload")} class="on">
-      <ProfileIcon icon={value} size={42} />
+      <ProfileIcon icon={value} size={40} />
     </button>
   {/if}
-  <button type="button" class="upload" title={t("form.upload")} aria-label={t("form.upload")} onclick={() => input.click()}>
-    <Icon name="upload" size={18} />
+  <button type="button" class="upload" title={t("form.upload")} aria-label={t("form.upload")} onclick={() => input?.click()}>
+    <Icon name="upload" size={17} />
   </button>
   <input bind:this={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange={(e) => upload(e.currentTarget.files?.[0])} />
 </div>
 
 <style>
   .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, 48px);
-    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
   }
 
   button {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     display: grid;
     place-items: center;
     border-radius: 6px;
@@ -69,7 +69,7 @@
   }
 
   button.on {
-    border-color: var(--text);
+    border-color: var(--green-text);
   }
 
   .upload {

@@ -1,20 +1,12 @@
-import {
-  api,
-  on,
-  type Account,
-  type GameVersion,
-  type InstalledMod,
-  type LogLine,
-  type Profile,
-  type ProfileDraft,
-  type Settings,
-  type Stage,
-} from "./api";
+import { api, on, type Account, type GameVersion, type InstalledMod, type LogLine, type Profile, type ProfileDraft, type Settings, type Stage } from "./api";
 import { locale, t } from "./i18n.svelte";
 
 export type View = "profile" | "settings";
 export type ProfileTab = "mods" | "settings";
 type Toast = { id: number; kind: "info" | "error"; text: string };
+
+/** One game being prepared or played; several profiles can run at once. */
+export type Run = { phase: "preparing" | "running"; stage: Stage; done: number; total: number };
 
 const MAX_LOG_LINES = 2000;
 
@@ -28,9 +20,10 @@ export const app = $state({
   selectedId: null as string | null,
   mods: [] as InstalledMod[],
   versions: [] as GameVersion[],
-  launch: { phase: "idle" as "idle" | "preparing" | "running", stage: "metadata" as Stage, done: 0, total: 0 },
-  logs: [] as LogLine[],
-  consoleOpen: false,
+  runs: {} as Record<string, Run>,
+  logs: {} as Record<string, LogLine[]>,
+  /** Profile whose console is open. */
+  console: null as string | null,
   modBrowserOpen: false,
   createOpen: false,
   accountsOpen: false,
@@ -151,47 +144,49 @@ export function updateSettings(patch: Partial<Settings>) {
   saveTimer = setTimeout(() => attempt(() => api.saveSettings($state.snapshot(app.settings!))), 400);
 }
 
-export async function launch() {
-  const id = app.selectedId;
-  if (!id || app.launch.phase !== "idle") return;
+export async function launch(id: string) {
+  if (app.runs[id]) return;
   if (!activeAccount()) {
     app.accountsOpen = true;
     return;
   }
   clearTimeout(saveTimer);
   await api.saveSettings($state.snapshot(app.settings!)).catch(() => {});
-  app.launch = { phase: "preparing", stage: "metadata", done: 0, total: 1 };
-  app.logs = [];
+  app.runs[id] = { phase: "preparing", stage: "metadata", done: 0, total: 1 };
+  app.logs[id] = [];
   try {
     await api.launch(id);
   } catch (err) {
-    app.launch.phase = "idle";
+    delete app.runs[id];
     toast(errorText(err), "error");
   }
 }
 
-export function stopGame() {
-  attempt(() => api.stopGame());
+export function stopGame(id: string) {
+  attempt(() => api.stopGame(id));
 }
 
 function wireEvents() {
-  on("launch-progress", (event) => {
-    if (app.launch.phase === "preparing") Object.assign(app.launch, event);
+  on("launch-progress", ({ profileId, ...progress }) => {
+    const run = app.runs[profileId];
+    if (run?.phase === "preparing") Object.assign(run, progress);
   });
-  on("game-started", () => {
-    app.launch.phase = "running";
-    const profile = selectedProfile();
+  on("game-started", ({ profileId }) => {
+    const run = app.runs[profileId];
+    if (run) run.phase = "running";
+    const profile = app.profiles.find((p) => p.id === profileId);
     if (profile) profile.lastPlayed = Math.floor(Date.now() / 1000);
   });
-  on("game-log", (line) => {
-    app.logs.push(line);
-    if (app.logs.length > MAX_LOG_LINES) app.logs.splice(0, app.logs.length - MAX_LOG_LINES);
+  on("game-log", ({ profileId, line, error }) => {
+    const logs = (app.logs[profileId] ??= []);
+    logs.push({ line, error });
+    if (logs.length > MAX_LOG_LINES) logs.splice(0, logs.length - MAX_LOG_LINES);
   });
-  on("game-exited", (code) => {
-    app.launch.phase = "idle";
+  on("game-exited", ({ profileId, code }) => {
+    delete app.runs[profileId];
     if (code !== null && code !== 0) {
       toast(t("error.crashed", { code }), "error");
-      app.consoleOpen = true;
+      app.console = profileId;
     }
   });
 }

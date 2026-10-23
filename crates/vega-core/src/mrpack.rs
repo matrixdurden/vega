@@ -1,6 +1,7 @@
 //! Modrinth modpacks (`.mrpack`): https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack
 
 use std::{
+    cmp::Ordering,
     collections::HashMap,
     io::{Cursor, Read},
     path::{Component, Path, PathBuf},
@@ -10,13 +11,28 @@ use serde::Deserialize;
 
 use crate::{
     Error, Result,
-    clients::{ClientInstall, sort_newest_first},
     modrinth::InstalledMod,
     net::{Download, Http, Progress, Stage},
     store,
 };
 
 const API: &str = "https://api.modrinth.com/v2";
+
+/// What installing a pack leaves behind for the profile.
+pub struct PackInstall {
+    pub loader_version: String,
+    pub mods: Vec<InstalledMod>,
+}
+
+/// Sorts Minecraft versions like `26.3`, `1.21.11`, `1.21.8` newest first.
+pub fn sort_newest_first(versions: &mut [String]) {
+    versions.sort_by(|a, b| compare_versions(b, a));
+}
+
+fn compare_versions(a: &str, b: &str) -> Ordering {
+    let parts = |v: &str| v.split(['.', '-']).map(|p| p.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+    parts(a).cmp(&parts(b))
+}
 
 #[derive(Deserialize)]
 struct PackVersion {
@@ -91,13 +107,7 @@ pub async fn game_versions(http: &Http, slug: &str) -> Result<Vec<String>> {
 }
 
 /// Installs the newest stable build of a Fabric modpack for `game`.
-pub async fn install(
-    http: &Http,
-    slug: &str,
-    game: &str,
-    instance: &Path,
-    progress: &Progress,
-) -> Result<ClientInstall> {
+pub async fn install(http: &Http, slug: &str, game: &str, instance: &Path, progress: &Progress) -> Result<PackInstall> {
     let versions = fabric_versions(http, slug, Some(game)).await?;
     let version = versions
         .iter()
@@ -155,7 +165,7 @@ pub async fn install_bytes(
     bytes: Vec<u8>,
     instance: &Path,
     progress: &Progress,
-) -> Result<(PackInfo, ClientInstall)> {
+) -> Result<(PackInfo, PackInstall)> {
     let (index, overrides) =
         tokio::task::spawn_blocking(move || read_pack(bytes)).await.map_err(|err| Error::other(err.to_string()))??;
     let info = pack_info(&index)?;
@@ -182,7 +192,7 @@ pub async fn install_bytes(
         store::write_atomic(&instance.join(path), &bytes).await?;
     }
     name_mods(http, &mut mods).await;
-    Ok((info, ClientInstall { loader_version, mods }))
+    Ok((info, PackInstall { loader_version, mods }))
 }
 
 /// Files to copy over the game directory, as (relative path, contents).
@@ -261,6 +271,13 @@ async fn name_mods(http: &Http, mods: &mut [InstalledMod]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sorts_versions() {
+        let mut v: Vec<String> = ["1.21.8", "26.3", "1.21.11", "26.1.2", "1.21.4"].map(String::from).to_vec();
+        sort_newest_first(&mut v);
+        assert_eq!(v, ["26.3", "26.1.2", "1.21.11", "1.21.8", "1.21.4"]);
+    }
 
     #[test]
     fn rejects_escaping_paths() {

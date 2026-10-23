@@ -27,13 +27,10 @@
     {#each app.profiles as profile (profile.id)}
       {@const active = app.view === "profile" && profile.id === app.selectedId}
       <button class="item" class:active aria-current={active ? "page" : undefined} onclick={() => selectProfile(profile.id)}>
-        <ProfileIcon icon={profile.icon} size={36} />
-        <span class="text">
-          <span class="name">{profile.name}</span>
-          <span class="meta">{profile.loader === "fabric" ? "Fabric" : "Vanilla"} {profile.gameVersion}</span>
-        </span>
-        {#if app.launch.phase !== "idle" && profile.id === app.selectedId}
-          <span class="live" class:running={app.launch.phase === "running"}></span>
+        <ProfileIcon icon={profile.icon} size={34} />
+        <span class="name">{profile.name}</span>
+        {#if app.runs[profile.id]}
+          <span class="live" class:running={app.runs[profile.id].phase === "running"}></span>
         {/if}
       </button>
     {/each}

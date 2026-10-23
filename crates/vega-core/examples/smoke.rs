@@ -2,9 +2,11 @@
 //!
 //! ```sh
 //! cargo run -p vega-core --example smoke -- /tmp/vega-smoke 1.21.1 sodium 60
+//! cargo run -p vega-core --example smoke -- /tmp/vega-smoke 26.3 pack:fabulously-optimized 0
 //! ```
-//! Creates a Fabric profile, installs a mod with its dependencies, downloads
-//! everything and runs the game for the given number of seconds.
+//! Creates a Fabric profile, installs a mod with its dependencies (or a
+//! whole modpack), downloads everything and runs the game for the given
+//! number of seconds.
 
 use std::{sync::Arc, time::Duration};
 
@@ -23,9 +25,9 @@ async fn main() -> vega_core::Result<()> {
     launcher.save_settings(Settings { memory_mb: 2048, ..Settings::default() }).await?;
     launcher.add_offline_account("VegaSmoke").await?;
 
-    // `client:<id>` installs a ready-made client instead of a single mod.
-    let profile = match mod_slug.strip_prefix("client:") {
-        Some(client) => launcher.create_client_profile(client, game, "sword", Arc::new(|_| {})).await?,
+    // `pack:<slug>` installs a Modrinth modpack instead of a single mod.
+    let profile = match mod_slug.strip_prefix("pack:") {
+        Some(slug) => launcher.create_modpack_profile(slug, game, slug, "chest", Arc::new(|_| {})).await?,
         None => {
             let draft = ProfileDraft {
                 name: format!("Smoke {game}"),

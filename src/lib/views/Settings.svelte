@@ -47,7 +47,7 @@
     </div>
 
     <p class="about">
-      Vega 0.4.0 · {t("settings.about")}
+      Vega 0.5.0 · {t("settings.about")}
       <button class="link" onclick={openRepo}><Icon name="github" size={14} />GitHub</button>
     </p>
   </section>
@@ -57,7 +57,7 @@
   .settings {
     height: 100%;
     overflow-y: auto;
-    padding: 44px 32px 40px;
+    padding: 56px clamp(20px, 3vw, 48px) 40px;
   }
 
   h1 {
@@ -66,7 +66,6 @@
   }
 
   .card {
-    max-width: 720px;
     border-radius: 8px;
     background: var(--panel);
     border: 1px solid var(--border);

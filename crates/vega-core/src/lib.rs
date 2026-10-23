@@ -12,7 +12,6 @@ mod rules;
 mod store;
 
 pub mod account;
-pub mod clients;
 pub mod fabric;
 pub mod java;
 pub mod launch;
@@ -24,7 +23,6 @@ pub mod msa;
 pub mod profile;
 
 pub use account::AccountSummary;
-pub use clients::ClientInfo;
 pub use error::{Error, Result};
 pub use launch::LaunchPlan;
 pub use launcher::{GameVersion, Launcher, ModResult};

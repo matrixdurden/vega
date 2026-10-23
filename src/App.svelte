@@ -33,8 +33,8 @@
     {#if app.modBrowserOpen && profile && app.view === "profile"}
       <ModBrowser {profile} />
     {/if}
-    {#if app.consoleOpen}
-      <Console />
+    {#if app.console}
+      {#key app.console}<Console profileId={app.console} />{/key}
     {/if}
   </main>
 

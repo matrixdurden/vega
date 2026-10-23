@@ -1,6 +1,6 @@
 //! Tauri shell: exposes `vega-core` to the web UI as commands and events.
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -9,22 +9,40 @@ use tokio::{
     sync::{Mutex, oneshot},
 };
 use vega_core::{
-    AccountSummary, ClientInfo, DeviceCode, Error, GameVersion, InstalledMod, Launcher, ModResult, Paths, Profile,
-    ProfileDraft, Progress, SearchHit, Settings,
+    AccountSummary, DeviceCode, Error, GameVersion, InstalledMod, Launcher, ModResult, Paths, Profile, ProfileDraft,
+    Progress, ProgressEvent, SearchHit, Settings,
 };
 
 type CmdResult<T> = Result<T, Error>;
 
 struct AppState {
     launcher: Launcher,
-    /// Set while Minecraft runs; sending on it stops the game.
-    stop_game: Mutex<Option<oneshot::Sender<()>>>,
+    /// Profiles whose game is starting (`None`) or running (`Some`); sending
+    /// on the channel stops that game.
+    games: Mutex<HashMap<String, Option<oneshot::Sender<()>>>>,
 }
 
 #[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct LogLine {
+    profile_id: String,
     line: String,
     error: bool,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProgressPayload {
+    profile_id: String,
+    #[serde(flatten)]
+    event: ProgressEvent,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GamePayload {
+    profile_id: String,
+    code: Option<i32>,
 }
 
 #[tauri::command]
@@ -50,25 +68,6 @@ async fn create_profile(state: State<'_, AppState>, draft: ProfileDraft) -> CmdR
 #[tauri::command]
 async fn update_profile(state: State<'_, AppState>, id: String, draft: ProfileDraft) -> CmdResult<Profile> {
     state.launcher.update_profile(&id, draft).await
-}
-
-#[tauri::command]
-async fn list_clients(state: State<'_, AppState>) -> CmdResult<Vec<ClientInfo>> {
-    Ok(state.launcher.clients().await)
-}
-
-#[tauri::command]
-async fn create_client_profile(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    client_id: String,
-    game_version: String,
-    icon: String,
-) -> CmdResult<Profile> {
-    let progress: Progress = Arc::new(move |event| {
-        let _ = app.emit("install-progress", event);
-    });
-    state.launcher.create_client_profile(&client_id, &game_version, &icon, progress).await
 }
 
 #[tauri::command]
@@ -255,39 +254,55 @@ async fn open_profile_folder(state: State<'_, AppState>, profile_id: String, fol
 }
 
 #[tauri::command]
-async fn stop_game(state: State<'_, AppState>) -> CmdResult<()> {
-    if let Some(stop) = state.stop_game.lock().await.take() {
+async fn stop_game(state: State<'_, AppState>, profile_id: String) -> CmdResult<()> {
+    if let Some(Some(stop)) = state.games.lock().await.get_mut(&profile_id).map(Option::take) {
         let _ = stop.send(());
     }
     Ok(())
 }
 
+/// Starts a profile's game. Several profiles can run side by side; one
+/// profile runs at most once, since two games cannot share a game folder.
 #[tauri::command]
 async fn launch(app: AppHandle, state: State<'_, AppState>, profile_id: String) -> CmdResult<()> {
-    if state.stop_game.lock().await.is_some() {
-        return Err(Error::other("Minecraft is already running"));
+    {
+        let mut games = state.games.lock().await;
+        if games.contains_key(&profile_id) {
+            return Err(Error::other("this profile is already running"));
+        }
+        games.insert(profile_id.clone(), None);
     }
     let emitter = app.clone();
+    let id = profile_id.clone();
     let progress: Progress = Arc::new(move |event| {
-        let _ = emitter.emit("launch-progress", event);
+        let _ = emitter.emit("launch-progress", ProgressPayload { profile_id: id.clone(), event });
     });
-    let plan = state.launcher.prepare(&profile_id, progress).await?;
-    let hide = state.launcher.settings().await?.hide_on_launch;
+    let started = async {
+        let plan = state.launcher.prepare(&profile_id, progress).await?;
+        Ok::<_, Error>(plan.command().spawn()?)
+    };
+    let mut child = match started.await {
+        Ok(child) => child,
+        Err(err) => {
+            state.games.lock().await.remove(&profile_id);
+            return Err(err);
+        }
+    };
 
-    let mut child = plan.command().spawn()?;
     if let Some(stdout) = child.stdout.take() {
-        pipe_logs(app.clone(), stdout, false);
+        pipe_logs(app.clone(), profile_id.clone(), stdout, false);
     }
     if let Some(stderr) = child.stderr.take() {
-        pipe_logs(app.clone(), stderr, true);
+        pipe_logs(app.clone(), profile_id.clone(), stderr, true);
     }
     let (stop_tx, stop_rx) = oneshot::channel();
-    *state.stop_game.lock().await = Some(stop_tx);
-    let window = app.get_webview_window("main");
-    if hide && let Some(window) = &window {
+    state.games.lock().await.insert(profile_id.clone(), Some(stop_tx));
+    if state.launcher.settings().await.map(|s| s.hide_on_launch).unwrap_or(false)
+        && let Some(window) = app.get_webview_window("main")
+    {
         let _ = window.hide();
     }
-    let _ = app.emit("game-started", ());
+    let _ = app.emit("game-started", GamePayload { profile_id: profile_id.clone(), code: None });
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -298,21 +313,28 @@ async fn launch(app: AppHandle, state: State<'_, AppState>, profile_id: String) 
                 child.wait().await
             }
         };
-        app.state::<AppState>().stop_game.lock().await.take();
-        if let Some(window) = window {
+        let state = app.state::<AppState>();
+        let mut games = state.games.lock().await;
+        games.remove(&profile_id);
+        // The launcher comes back once the last game has closed.
+        if games.is_empty()
+            && let Some(window) = app.get_webview_window("main")
+        {
             let _ = window.show();
             let _ = window.set_focus();
         }
-        let _ = app.emit("game-exited", status.ok().and_then(|status| status.code()));
+        drop(games);
+        let code = status.ok().and_then(|status| status.code());
+        let _ = app.emit("game-exited", GamePayload { profile_id, code });
     });
     Ok(())
 }
 
-fn pipe_logs(app: AppHandle, reader: impl AsyncRead + Unpin + Send + 'static, error: bool) {
+fn pipe_logs(app: AppHandle, profile_id: String, reader: impl AsyncRead + Unpin + Send + 'static, error: bool) {
     tauri::async_runtime::spawn(async move {
         let mut lines = BufReader::new(reader).lines();
         while let Ok(Some(line)) = lines.next_line().await {
-            let _ = app.emit("game-log", LogLine { line, error });
+            let _ = app.emit("game-log", LogLine { profile_id: profile_id.clone(), line, error });
         }
     });
 }
@@ -328,7 +350,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState { launcher, stop_game: Mutex::new(None) })
+        .manage(AppState { launcher, games: Mutex::new(HashMap::new()) })
         .invoke_handler(tauri::generate_handler![
             get_settings,
             save_settings,
@@ -336,8 +358,6 @@ pub fn run() {
             create_profile,
             update_profile,
             delete_profile,
-            list_clients,
-            create_client_profile,
             search_modpacks,
             modpack_versions,
             create_modpack_profile,

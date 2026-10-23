@@ -4,7 +4,6 @@ import { mockCall, mockListen } from "./mock";
 
 export type Loader = "vanilla" | "fabric";
 export type Stage = "metadata" | "libraries" | "assets" | "java" | "mods" | "starting";
-export type ProfileFolder = "mods" | "resourcepacks" | "shaderpacks" | "screenshots" | "saves";
 
 export interface Settings {
   memoryMb: number;
@@ -21,7 +20,6 @@ export interface Profile {
   gameVersion: string;
   loader: Loader;
   loaderVersion: string | null;
-  client: string | null;
   memoryMb: number | null;
   lastPlayed: number | null;
 }
@@ -46,14 +44,6 @@ export interface DeviceCode {
   userCode: string;
   verificationUri: string;
   expiresIn: number;
-}
-
-export interface ClientInfo {
-  id: string;
-  name: string;
-  kind: "utility" | "performance";
-  homepage: string;
-  versions: string[];
 }
 
 export interface GameVersion {
@@ -99,12 +89,13 @@ export interface LogLine {
   error: boolean;
 }
 
+/** Game events carry the profile they belong to; several can run at once. */
 export interface Events {
-  "launch-progress": ProgressEvent;
+  "launch-progress": ProgressEvent & { profileId: string };
   "install-progress": ProgressEvent;
-  "game-started": null;
-  "game-log": LogLine;
-  "game-exited": number | null;
+  "game-started": { profileId: string };
+  "game-log": LogLine & { profileId: string };
+  "game-exited": { profileId: string; code: number | null };
 }
 
 /** Outside Tauri (plain `npm run dev` in a browser) a mock backend is used. */
@@ -149,9 +140,6 @@ export const api = {
   deleteProfile: (id: string) => call<void>("delete_profile", { id }),
   gameVersions: () => call<GameVersion[]>("game_versions"),
 
-  listClients: () => call<ClientInfo[]>("list_clients"),
-  createClientProfile: (clientId: string, gameVersion: string, icon: string) =>
-    call<Profile>("create_client_profile", { clientId, gameVersion, icon }),
   searchModpacks: (query: string) => call<Project[]>("search_modpacks", { query }),
   modpackVersions: (slug: string) => call<string[]>("modpack_versions", { slug }),
   createModpackProfile: (slug: string, gameVersion: string, name: string, icon: string) =>
@@ -166,9 +154,8 @@ export const api = {
   setModEnabled: (profileId: string, projectId: string, enabled: boolean) =>
     call<InstalledMod[]>("set_mod_enabled", { profileId, projectId, enabled }),
   removeMod: (profileId: string, projectId: string) => call<InstalledMod[]>("remove_mod", { profileId, projectId }),
-  openProfileFolder: (profileId: string, folder?: ProfileFolder) =>
-    call<void>("open_profile_folder", { profileId, folder: folder ?? null }),
+  openProfileFolder: (profileId: string) => call<void>("open_profile_folder", { profileId, folder: null }),
 
   launch: (profileId: string) => call<void>("launch", { profileId }),
-  stopGame: () => call<void>("stop_game"),
+  stopGame: (profileId: string) => call<void>("stop_game", { profileId }),
 };

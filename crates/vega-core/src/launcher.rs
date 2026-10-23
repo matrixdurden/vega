@@ -10,12 +10,13 @@ use tokio::sync::{Mutex, oneshot};
 use crate::{
     Error, Result,
     account::{self, Account, AccountKind, AccountStore, AccountSummary, StoredAccount},
-    clients::{self, ClientInfo, ClientInstall},
     fabric,
     launch::{self, LaunchPlan, LaunchRequest},
     localmod,
     modrinth::{self, InstalledMod, SearchHit},
-    mojang, mrpack, msa,
+    mojang,
+    mrpack::{self, PackInstall},
+    msa,
     net::{Http, Progress},
     paths::Paths,
     profile::{Loader, Profile, ProfileDraft, Settings},
@@ -249,29 +250,8 @@ impl Launcher {
             game_version: draft.game_version,
             loader: draft.loader,
             loader_version,
-            client: None,
             memory_mb: draft.memory_mb.map(clamp_memory),
             last_played: None,
-        })
-        .await
-    }
-
-    /// Ready-made clients and the Minecraft versions each supports.
-    pub async fn clients(&self) -> Vec<ClientInfo> {
-        clients::catalog(&self.http).await
-    }
-
-    /// Creates a Fabric profile with a client installed in it.
-    pub async fn create_client_profile(
-        &self,
-        client_id: &str,
-        game_version: &str,
-        icon: &str,
-        progress: Progress,
-    ) -> Result<Profile> {
-        let name = clients::name(client_id).ok_or_else(|| Error::other(format!("unknown client {client_id}")))?;
-        self.create_installed_profile(name, icon, game_version, Some(client_id.to_owned()), |instance| async move {
-            clients::install(&self.http, client_id, game_version, &instance, &progress).await
         })
         .await
     }
@@ -295,7 +275,7 @@ impl Launcher {
         icon: &str,
         progress: Progress,
     ) -> Result<Profile> {
-        self.create_installed_profile(name, icon, game_version, None, |instance| async move {
+        self.create_installed_profile(name, icon, game_version, |instance| async move {
             mrpack::install(&self.http, slug, game_version, &instance, &progress).await
         })
         .await
@@ -304,7 +284,7 @@ impl Launcher {
     /// Creates a profile from a `.mrpack` file the player picked.
     pub async fn import_modpack(&self, bytes: Vec<u8>, icon: &str, progress: Progress) -> Result<Profile> {
         let info = mrpack::inspect(&bytes)?;
-        self.create_installed_profile(&info.name, icon, &info.game_version, None, |instance| async move {
+        self.create_installed_profile(&info.name, icon, &info.game_version, |instance| async move {
             Ok(mrpack::install_bytes(&self.http, bytes, &instance, &progress).await?.1)
         })
         .await
@@ -317,12 +297,11 @@ impl Launcher {
         name: &str,
         icon: &str,
         game_version: &str,
-        client: Option<String>,
         install: F,
     ) -> Result<Profile>
     where
         F: FnOnce(PathBuf) -> Fut,
-        Fut: Future<Output = Result<ClientInstall>>,
+        Fut: Future<Output = Result<PackInstall>>,
     {
         check_icon(icon)?;
         let mut profile = self
@@ -333,7 +312,6 @@ impl Launcher {
                 game_version: game_version.to_owned(),
                 loader: Loader::Fabric,
                 loader_version: None,
-                client,
                 memory_mb: None,
                 last_played: None,
             })
@@ -691,7 +669,6 @@ mod tests {
             game_version: "1.21.1".into(),
             loader: Loader::Fabric,
             loader_version: Some("0.16.10".into()),
-            client: None,
             memory_mb: None,
             last_played: None,
         };

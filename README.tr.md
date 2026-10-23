@@ -32,7 +32,8 @@ Vega, ayağına dolanmayan bir Minecraft launcher'ı. Sürümünü seç, Modrint
 ## Özellikler
 
 - **Her şey profilin etrafında.** Her profil sol panelde piksel sanat ikonu (ya da kendi resmin), Minecraft sürümü ve modlarıyla durur.
-- **İstediğin client, istediğin gibi.** Bir client ya da mod `.jar` dosyasını profile sürükle bırak, ya da doğrudan jar'dan yeni profil oluştur. [Meteor Client](https://meteorclient.com) tek tıkla da kurulur.
+- **İstediğin client, istediğin gibi.** Bir client ya da mod `.jar` dosyasını profile sürükle bırak, ya da doğrudan jar'dan yeni profil oluştur.
+- **Aynı anda birden fazla oyun.** Farklı profilleri yan yana çalıştır; her birinin kendi ilerlemesi, durdurma butonu ve logu var.
 - **Modrinth mod paketleri.** Modrinth'teki Fabric mod paketlerini ara ve kur ya da bir `.mrpack` dosyasını içe aktar. Modları, ayarları ve istedikleri Fabric sürümüyle gelir.
 - **Hesaplar.** Offline isimler ve Microsoft girişi (cihaz koduyla), birden fazla hesap yan yana.
 - **Kapatılabilir modlar.** Bir modu silmeden kapatabilir ya da tamamen kaldırabilirsin. Fabric API gibi gerekli bağımlılıklar otomatik gelir.
@@ -61,7 +62,8 @@ Microsoft girişi için "Allow public client flows" açık olan ve Mojang'ın Mi
 - [x] Otomatik Java
 - [x] Oyun konsolu ve çökme bildirimi
 - [x] Offline ve Microsoft hesapları
-- [x] Hazır client'lar ve Modrinth mod paketleri (`.mrpack`)
+- [x] `.jar` dosyasından client'lar ve Modrinth mod paketleri (`.mrpack`)
+- [x] Aynı anda birden fazla oyun
 - [ ] NeoForge ve Quilt
 - [ ] Neyin bozulduğunu açıklayan çökme analizcisi
 - [ ] Profil yedekleri ve tek tıkla geri alma

@@ -22,9 +22,6 @@ pub struct Profile {
     /// Pinned when the profile is created so updates never surprise anyone.
     #[serde(default)]
     pub loader_version: Option<String>,
-    /// The ready-made client this profile was created from, if any.
-    #[serde(default)]
-    pub client: Option<String>,
     /// Overrides the global memory setting when set.
     #[serde(default)]
     pub memory_mb: Option<u32>,
